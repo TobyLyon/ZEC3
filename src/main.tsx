@@ -4,21 +4,110 @@ import { siSolana, siZcash, type SimpleIcon } from "simple-icons";
 import {
   Activity,
   ArrowUpRight,
+  ArrowDownRight,
   BadgeDollarSign,
   BarChart3,
   Boxes,
   CircleDotDashed,
+  Clock,
   Gauge,
   Landmark,
   Layers3,
   LockKeyhole,
   Play,
   Radar,
+  RefreshCw,
   ShieldCheck,
+  TrendingUp,
+  TrendingDown,
   Wallet,
   Zap
 } from "lucide-react";
 import "./styles.css";
+
+/* ── Live Price API (CoinGecko free, no key) ── */
+
+type CoinId = "solana" | "zcash" | "jupiter-exchange-solana";
+type PriceData = {
+  usd: number;
+  usd_24h_change: number;
+  usd_24h_vol: number;
+  usd_market_cap: number;
+};
+type Prices = Record<CoinId, PriceData>;
+
+const COIN_IDS: CoinId[] = ["solana", "zcash", "jupiter-exchange-solana"];
+const COIN_LABELS: Record<CoinId, string> = {
+  solana: "SOL",
+  zcash: "ZEC",
+  "jupiter-exchange-solana": "JUP"
+};
+
+function useLivePrices(intervalMs = 30_000) {
+  const [prices, setPrices] = useState<Prices | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchPrices() {
+      try {
+        const ids = COIN_IDS.join(",");
+        const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`CoinGecko ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+        const mapped: Partial<Prices> = {};
+        for (const id of COIN_IDS) {
+          const d = data[id];
+          if (d) {
+            mapped[id] = {
+              usd: d.usd ?? 0,
+              usd_24h_change: d.usd_24h_change ?? 0,
+              usd_24h_vol: d.usd_24h_vol ?? 0,
+              usd_market_cap: d.usd_market_cap ?? 0
+            };
+          }
+        }
+        setPrices(mapped as Prices);
+        setLastUpdate(new Date());
+        setError(null);
+      } catch (err) {
+        if (!cancelled) setError((err as Error).message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchPrices();
+    const timer = setInterval(fetchPrices, intervalMs);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [intervalMs]);
+
+  return { prices, lastUpdate, error, loading };
+}
+
+/* ── Position / Trade types ── */
+
+type PositionSide = "long" | "short";
+type PositionStatus = "open" | "closed" | "pending";
+
+type Position = {
+  id: string;
+  asset: string;
+  side: PositionSide;
+  status: PositionStatus;
+  entryPrice: number;
+  size: number;
+  sizeUnit: string;
+  notional: number;
+  leverage: string;
+  entryTime: string;
+  stopLoss: number | null;
+  takeProfit: number | null;
+  source: string;
+};
 
 type StageStatus = "ready" | "active" | "queued" | "done";
 
@@ -82,19 +171,74 @@ const stages: Stage[] = [
   }
 ];
 
-const statePanels = [
-  { label: "Creator Vault", value: "2.38 SOL", detail: "Below run threshold", tone: "gold" },
-  { label: "Solana ZEC", value: "128.7 ZEC", detail: "Treasury balance", tone: "cyan" },
-  { label: "Jupiter ZEC Long", value: "$18.4K", detail: "+0.42% unrealized", tone: "cyan" },
-  { label: "Airdrop Reserve", value: "$312", detail: "Realized PnL queued", tone: "gold" },
-  { label: "Holder Queue", value: "4,821", detail: "Snapshot recipients", tone: "gold" }
+const enginePositions: Position[] = [
+  {
+    id: "pos-zec-long-1",
+    asset: "ZEC",
+    side: "long",
+    status: "open",
+    entryPrice: 38.42,
+    size: 128.7,
+    sizeUnit: "ZEC",
+    notional: 4947,
+    leverage: "1x",
+    entryTime: "2025-05-18 14:22:08",
+    stopLoss: 32.66,
+    takeProfit: 52.80,
+    source: "Jupiter Perps"
+  },
+  {
+    id: "pos-zec-long-2",
+    asset: "ZEC",
+    side: "long",
+    status: "open",
+    entryPrice: 40.15,
+    size: 62.3,
+    sizeUnit: "ZEC",
+    notional: 2501,
+    leverage: "1x",
+    entryTime: "2025-05-19 09:44:31",
+    stopLoss: 34.13,
+    takeProfit: 55.00,
+    source: "Jupiter Perps"
+  },
+  {
+    id: "pos-sol-hold",
+    asset: "SOL",
+    side: "long",
+    status: "open",
+    entryPrice: 168.20,
+    size: 14.82,
+    sizeUnit: "SOL",
+    notional: 2493,
+    leverage: "1x",
+    entryTime: "2025-05-20 08:18:44",
+    stopLoss: null,
+    takeProfit: null,
+    source: "Creator Vault"
+  },
+  {
+    id: "pos-zec-pending",
+    asset: "ZEC",
+    side: "long",
+    status: "pending",
+    entryPrice: 0,
+    size: 43.19,
+    sizeUnit: "ZEC",
+    notional: 0,
+    leverage: "1x",
+    entryTime: "",
+    stopLoss: null,
+    takeProfit: null,
+    source: "Jupiter Route"
+  }
 ];
 
 const allocations = [
-  { label: "Solana ZEC", value: 30, color: "var(--cyan)" },
-  { label: "Jupiter Long", value: 30, color: "var(--blue)" },
-  { label: "Holder Airdrop", value: 30, color: "var(--gold)" },
-  { label: "Retained SOL", value: 10, color: "var(--platinum)" }
+  { label: "ZEC Spot", value: 30, color: "rgba(255,255,255,0.85)" },
+  { label: "ZEC Long", value: 30, color: "rgba(218,234,255,0.7)" },
+  { label: "Holder Airdrop", value: 30, color: "rgba(255,255,255,0.5)" },
+  { label: "Retained SOL", value: 10, color: "rgba(255,255,255,0.3)" }
 ];
 
 const initialLedger: LedgerItem[] = [
@@ -504,12 +648,198 @@ function LandingPage({ onEnter }: { onEnter: () => void }) {
   );
 }
 
+/* ── Formatters ── */
+
+function fmtUsd(n: number, decimals = 2) {
+  return n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function fmtPct(n: number) {
+  const sign = n >= 0 ? "+" : "";
+  return `${sign}${n.toFixed(2)}%`;
+}
+
+function fmtCompact(n: number) {
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
+  return fmtUsd(n);
+}
+
+function computePnl(pos: Position, currentPrice: number) {
+  if (pos.status !== "open" || pos.entryPrice === 0) return { pnl: 0, pnlPct: 0, markValue: 0 };
+  const markValue = pos.size * currentPrice;
+  const costBasis = pos.size * pos.entryPrice;
+  const pnl = pos.side === "long" ? markValue - costBasis : costBasis - markValue;
+  const pnlPct = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+  return { pnl, pnlPct, markValue };
+}
+
+function getCoinIdForAsset(asset: string): CoinId | null {
+  if (asset === "ZEC") return "zcash";
+  if (asset === "SOL") return "solana";
+  if (asset === "JUP") return "jupiter-exchange-solana";
+  return null;
+}
+
+/* ── Price Ticker Strip ── */
+
+function PriceTicker({ prices, loading, lastUpdate }: { prices: Prices | null; loading: boolean; lastUpdate: Date | null }) {
+  if (loading && !prices) {
+    return (
+      <div className="price-ticker-strip glass">
+        <div className="ticker-loading"><RefreshCw size={14} className="spin" /> Fetching live prices…</div>
+      </div>
+    );
+  }
+  if (!prices) return null;
+
+  return (
+    <div className="price-ticker-strip glass">
+      {COIN_IDS.map((id) => {
+        const p = prices[id];
+        if (!p) return null;
+        const up = p.usd_24h_change >= 0;
+        return (
+          <div key={id} className="ticker-item">
+            <span className="ticker-symbol">{COIN_LABELS[id]}</span>
+            <span className="ticker-price">{fmtUsd(p.usd)}</span>
+            <span className={`ticker-change ${up ? "up" : "down"}`}>
+              {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              {fmtPct(p.usd_24h_change)}
+            </span>
+            <span className="ticker-vol">Vol {fmtCompact(p.usd_24h_vol)}</span>
+          </div>
+        );
+      })}
+      {lastUpdate && (
+        <div className="ticker-meta">
+          <Clock size={11} />
+          <span>{lastUpdate.toLocaleTimeString("en-US", { hour12: false })}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Positions Table ── */
+
+function PositionRow({ pos, currentPrice }: { pos: Position; currentPrice: number }) {
+  const { pnl, pnlPct, markValue } = computePnl(pos, currentPrice);
+  const isPending = pos.status === "pending";
+  const up = pnl >= 0;
+
+  return (
+    <div className={`position-row ${pos.status}`}>
+      <div className="pos-cell pos-asset">
+        <span className={`pos-side-badge ${pos.side}`}>{pos.side.toUpperCase()}</span>
+        <strong>{pos.asset}/{pos.sizeUnit === pos.asset ? "USD" : pos.sizeUnit}</strong>
+      </div>
+      <div className="pos-cell pos-size">
+        <span className="pos-label">Size</span>
+        <strong>{pos.size.toLocaleString()} {pos.sizeUnit}</strong>
+      </div>
+      <div className="pos-cell pos-entry">
+        <span className="pos-label">Entry</span>
+        <strong>{isPending ? "—" : fmtUsd(pos.entryPrice)}</strong>
+      </div>
+      <div className="pos-cell pos-mark">
+        <span className="pos-label">Mark</span>
+        <strong>{isPending ? "—" : fmtUsd(currentPrice)}</strong>
+      </div>
+      <div className="pos-cell pos-value">
+        <span className="pos-label">Value</span>
+        <strong>{isPending ? "Pending" : fmtUsd(markValue)}</strong>
+      </div>
+      <div className={`pos-cell pos-pnl ${isPending ? "" : up ? "up" : "down"}`}>
+        <span className="pos-label">uPnL</span>
+        <strong>
+          {isPending ? "—" : (
+            <>
+              {up ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+              {fmtUsd(Math.abs(pnl))} ({fmtPct(pnlPct)})
+            </>
+          )}
+        </strong>
+      </div>
+      <div className="pos-cell pos-lev">
+        <span className="pos-label">Lev</span>
+        <strong>{pos.leverage}</strong>
+      </div>
+      <div className="pos-cell pos-sl">
+        <span className="pos-label">SL</span>
+        <strong>{pos.stopLoss ? fmtUsd(pos.stopLoss) : "—"}</strong>
+      </div>
+      <div className="pos-cell pos-tp">
+        <span className="pos-label">TP</span>
+        <strong>{pos.takeProfit ? fmtUsd(pos.takeProfit) : "—"}</strong>
+      </div>
+      <div className="pos-cell pos-source">
+        <span className="pos-label">Source</span>
+        <span>{pos.source}</span>
+      </div>
+      <div className="pos-cell pos-status-badge">
+        <span className={`status-dot ${pos.status}`} />
+        <span>{pos.status}</span>
+      </div>
+    </div>
+  );
+}
+
+function PortfolioSummary({ positions, prices }: { positions: Position[]; prices: Prices | null }) {
+  if (!prices) return null;
+
+  let totalValue = 0;
+  let totalPnl = 0;
+  let totalCost = 0;
+  let openCount = 0;
+
+  for (const pos of positions) {
+    const coinId = getCoinIdForAsset(pos.asset);
+    if (!coinId || !prices[coinId] || pos.status !== "open") continue;
+    const cp = prices[coinId].usd;
+    const { pnl, markValue } = computePnl(pos, cp);
+    totalValue += markValue;
+    totalPnl += pnl;
+    totalCost += pos.size * pos.entryPrice;
+    openCount++;
+  }
+
+  const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+  const up = totalPnl >= 0;
+
+  return (
+    <div className="portfolio-summary">
+      <div className="summary-item">
+        <span>Total Value</span>
+        <strong>{fmtUsd(totalValue)}</strong>
+      </div>
+      <div className={`summary-item ${up ? "up" : "down"}`}>
+        <span>Unrealized PnL</span>
+        <strong>
+          {up ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+          {fmtUsd(Math.abs(totalPnl))} ({fmtPct(totalPnlPct)})
+        </strong>
+      </div>
+      <div className="summary-item">
+        <span>Open Positions</span>
+        <strong>{openCount}</strong>
+      </div>
+      <div className="summary-item">
+        <span>Airdrop Reserve</span>
+        <strong>$312</strong>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [showDashboard, setShowDashboard] = useState(false);
   const [selected, setSelected] = useState("Overview");
   const [dryRuns, setDryRuns] = useState(27);
   const [ledger, setLedger] = useState(initialLedger);
   const [pulse, setPulse] = useState(false);
+  const { prices, lastUpdate, loading } = useLivePrices(30_000);
 
   const health = useMemo(() => Math.min(99, 84 + (dryRuns % 9)), [dryRuns]);
 
@@ -527,17 +857,18 @@ function App() {
       second: "2-digit"
     });
     setDryRuns((value) => value + 1);
+    const solPrice = prices?.solana?.usd ?? 0;
     setLedger((items) => [
       {
         time,
         action: "Dry check completed",
-        value: `${(14.82 + (dryRuns % 4) * 0.13).toFixed(2)} SOL simulated`,
+        value: solPrice > 0 ? `14.82 SOL (${fmtUsd(14.82 * solPrice)})` : "14.82 SOL simulated",
         hash: `dry_${Math.random().toString(36).slice(2, 6)}...${Math.random()
           .toString(36)
           .slice(2, 5)}`,
         chain: "Engine"
       },
-      ...items.slice(0, 5)
+      ...items.slice(0, 7)
     ]);
     setPulse(true);
     window.setTimeout(() => setPulse(false), 900);
@@ -557,31 +888,40 @@ function App() {
           <span>ZEC3</span>
         </div>
         <nav aria-label="Dashboard navigation">
-          {["Overview", "Ledger", "Risk", "Settings"].map((item) => (
+          {["Overview", "Positions", "Ledger", "Risk"].map((item) => (
             <button
               key={item}
               className={selected === item ? "nav-item selected" : "nav-item"}
               onClick={() => setSelected(item)}
             >
               {item === "Overview" && <Radar size={17} />}
+              {item === "Positions" && <BarChart3 size={17} />}
               {item === "Ledger" && <Layers3 size={17} />}
               {item === "Risk" && <ShieldCheck size={17} />}
-              {item === "Settings" && <Gauge size={17} />}
               <span>{item}</span>
             </button>
           ))}
         </nav>
         <div className="rail-status">
           <LockKeyhole size={15} />
-          <span>Local signer only</span>
+          <span>Spectator mode</span>
         </div>
       </aside>
 
       <section className="workspace">
+        {/* Price Ticker Strip */}
+        <PriceTicker prices={prices} loading={loading} lastUpdate={lastUpdate} />
+
         <header className="topbar glass">
           <div>
-            <h1>Fee Engine Dashboard</h1>
-            <p>Live automation: dry-run armed</p>
+            <h1>Fee Engine Terminal</h1>
+            <p>
+              {prices?.zcash ? (
+                <>ZEC {fmtUsd(prices.zcash.usd)} <span className={prices.zcash.usd_24h_change >= 0 ? "up" : "down"}>{fmtPct(prices.zcash.usd_24h_change)}</span></>
+              ) : (
+                "Connecting to price feed…"
+              )}
+            </p>
           </div>
           <div className="actions">
             <button className="trace-button" onClick={runDryCheck}>
@@ -599,12 +939,47 @@ function App() {
           </div>
         </header>
 
-        <section className="dashboard-grid">
+        {/* Portfolio Summary Bar */}
+        <PortfolioSummary positions={enginePositions} prices={prices} />
+
+        <section className="terminal-grid">
+          {/* POSITIONS TABLE — Primary focus */}
+          <section className="positions-panel glass">
+            <div className="panel-heading compact">
+              <div>
+                <h2>Open Positions</h2>
+                <p>{enginePositions.filter(p => p.status === "open").length} active &bull; {enginePositions.filter(p => p.status === "pending").length} pending</p>
+              </div>
+              <Activity size={18} />
+            </div>
+            <div className="positions-header">
+              <span>Asset</span>
+              <span>Size</span>
+              <span>Entry</span>
+              <span>Mark</span>
+              <span>Value</span>
+              <span>uPnL</span>
+              <span>Lev</span>
+              <span>SL</span>
+              <span>TP</span>
+              <span>Source</span>
+              <span>Status</span>
+            </div>
+            <div className="positions-table">
+              {enginePositions.map((pos) => {
+                const coinId = getCoinIdForAsset(pos.asset);
+                const cp = coinId && prices?.[coinId] ? prices[coinId].usd : 0;
+                return <PositionRow key={pos.id} pos={pos} currentPrice={cp} />;
+              })}
+            </div>
+          </section>
+
+          {/* Mechanism State — Compact */}
           <section className={pulse ? "process-panel glass pulsing" : "process-panel glass"}>
             <div className="panel-heading">
               <div>
-                <h2>Mechanism State</h2>
-                <p>Each module shows the next executable treasury action.</p>
+                <h2>Engine Pipeline</h2>
+                <p>Treasury automation stages</p>
               </div>
               <div className="health-ring" style={{ "--health": `${health}%` } as React.CSSProperties}>
                 <span>{health}</span>
@@ -630,55 +1005,37 @@ function App() {
                 </div>
               ))}
             </div>
-
-            <div className="risk-caps" aria-label="Risk caps">
-              <Metric label="Max Leverage" value="1x" suffix="isolated" />
-              <Metric label="Max Position" value="250" suffix="USDC per order" />
-              <Metric label="Stop Loss" value="-15%" suffix="manual breaker" />
-              <Metric label="Max Slippage" value="10%" suffix="Jupiter route" />
-            </div>
           </section>
 
-          <aside className="state-stack">
-            {statePanels.map((panel) => (
-              <div key={panel.label} className={`state-panel glass ${panel.tone}`}>
-                <span>{panel.label}</span>
-                <strong>{panel.value}</strong>
-                <small>{panel.detail}</small>
-              </div>
-            ))}
-          </aside>
-
+          {/* Risk & Market Data */}
           <section className="market-panel glass">
             <div className="panel-heading compact">
               <div>
-                <h2>Execution Map</h2>
-                <p>Route spot accumulation, exposure, and holder distributions.</p>
+                <h2>Market Data</h2>
+                <p>Live prices & risk parameters</p>
               </div>
               <ArrowUpRight size={18} />
             </div>
-            <div className="route-map">
-              <div className="node primary">Pump.fun</div>
-              <div className="path path-one" />
-              <div className="node">Jupiter</div>
-              <div className="path path-two" />
-              <div className="node">ZEC Long</div>
-              <div className="path path-three" />
-              <div className="node distribution-node">Airdrop</div>
-            </div>
             <div className="risk-grid">
-              <Metric label="Claimed SOL" value="14.82" suffix="SOL" />
-              <Metric label="ZEC Acquired" value="43.19" suffix="ZEC" />
-              <Metric label="Jupiter Notional" value="2,950" suffix="USDC" />
-              <Metric label="Airdrop Reserve" value="312" suffix="USDC" />
+              <Metric label="SOL Price" value={prices?.solana ? fmtUsd(prices.solana.usd) : "—"} suffix={prices?.solana ? fmtPct(prices.solana.usd_24h_change) : ""} />
+              <Metric label="ZEC Price" value={prices?.zcash ? fmtUsd(prices.zcash.usd) : "—"} suffix={prices?.zcash ? fmtPct(prices.zcash.usd_24h_change) : ""} />
+              <Metric label="JUP Price" value={prices?.["jupiter-exchange-solana"] ? fmtUsd(prices["jupiter-exchange-solana"].usd) : "—"} suffix={prices?.["jupiter-exchange-solana"] ? fmtPct(prices["jupiter-exchange-solana"].usd_24h_change) : ""} />
+              <Metric label="ZEC Mkt Cap" value={prices?.zcash ? fmtCompact(prices.zcash.usd_market_cap) : "—"} suffix="" />
+            </div>
+            <div className="risk-grid" style={{ marginTop: 10 }}>
+              <Metric label="Max Leverage" value="1x" suffix="isolated" />
+              <Metric label="Max Position" value="$250" suffix="per order" />
+              <Metric label="Stop Loss" value="-15%" suffix="breaker" />
+              <Metric label="Max Slippage" value="10%" suffix="Jupiter" />
             </div>
           </section>
 
+          {/* Activity Ledger */}
           <section className="ledger-panel glass">
             <div className="panel-heading compact">
               <div>
-                <h2>Latest Signatures</h2>
-                <p>Public activity trail for every automated run.</p>
+                <h2>Activity Log</h2>
+                <p>On-chain signature trail</p>
               </div>
               <Landmark size={18} />
             </div>
@@ -715,11 +1072,13 @@ function ProcessStage({ stage, index }: { stage: Stage; index: number }) {
 }
 
 function Metric({ label, value, suffix }: { label: string; value: string; suffix: string }) {
+  const isChange = suffix.startsWith("+") || suffix.startsWith("-");
+  const changeClass = isChange ? (suffix.startsWith("+") ? "up" : "down") : "";
   return (
     <div className="metric">
       <span>{label}</span>
       <strong>{value}</strong>
-      <small>{suffix}</small>
+      <small className={changeClass}>{suffix}</small>
     </div>
   );
 }
