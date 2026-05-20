@@ -575,6 +575,8 @@ function LandingPage({ onEnter }: { onEnter: () => void }) {
             <span>$ZEC3</span>
             <span>$ZEC3</span>
             <span>$ZEC3</span>
+            <span>$ZEC3</span>
+            <span>$ZEC3</span>
           </div>
         </div>
         <div className="section-inner">
