@@ -131,7 +131,7 @@ type LedgerItem = {
 
 const zec3Assets = {
   bubbleLogo: "/assets/zec3/bubble-text-logo.png",
-  navLogo: "/assets/zec3/bubble-text-logo-nav.png",
+  navLogo: "/assets/zec3/bubble-text-logo-nav.png?v=2",
   tokenImage: "/assets/zec3/zec3-token.png"
 };
 
