@@ -71,35 +71,37 @@ button {
   padding: 15px 10px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  gap: 0;
 }
 
 .brand {
   display: grid;
-  gap: 9px;
+  gap: 6px;
   justify-items: center;
   color: var(--soft);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .brand-mark {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: linear-gradient(135deg, rgba(91, 216, 232, 0.2), rgba(217, 184, 109, 0.18));
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 0 24px rgba(217, 184, 109, 0.14);
+  background: transparent;
+  border: none;
+  box-shadow: none;
   overflow: hidden;
 }
 
 .brand-mark img {
-  width: 52px;
-  height: 52px;
+  width: 38px;
+  height: 38px;
   object-fit: contain;
 }
 
@@ -144,6 +146,7 @@ nav {
 }
 
 .rail-status {
+  margin-top: auto;
   display: grid;
   justify-items: center;
   gap: 8px;
