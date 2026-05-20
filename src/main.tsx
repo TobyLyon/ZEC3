@@ -568,7 +568,15 @@ function LandingPage({ onEnter }: { onEnter: () => void }) {
       </section>
 
       {/* Section 5: CTA */}
-      <section className="landing-section cta-section">
+      <section id="launch" className="landing-section cta-section">
+        <div className="zec3-cinematic-scroll" aria-hidden="true">
+          <div className="zec3-cinematic-track">
+            <span>$ZEC3</span>
+            <span>$ZEC3</span>
+            <span>$ZEC3</span>
+            <span>$ZEC3</span>
+          </div>
+        </div>
         <div className="section-inner">
           <Reveal>
             <h2 className="section-title massive">Enter the Engine.</h2>
