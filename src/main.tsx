@@ -319,6 +319,7 @@ function BrandMarquee() {
 
 const ZEC3_CONTRACT_ADDRESS = import.meta.env.VITE_ZEC3_CONTRACT_ADDRESS || "TBA";
 const ENGINE_MODE = import.meta.env.VITE_ENGINE_MODE || "Prelaunch";
+const ZEC3_X_URL = "https://x.com/ZEC3solana";
 
 function EmptyState({ title, detail }: { title: string; detail: string }) {
   return (
@@ -350,6 +351,42 @@ function CopyCA() {
       <span className="copy-ca-addr">{truncated}</span>
       {copied ? <Check size={13} /> : <Copy size={13} />}
     </button>
+  );
+}
+
+function LandingFooter() {
+  const [copied, setCopied] = useState(false);
+  const displayedAddress = ZEC3_CONTRACT_ADDRESS.length > 18
+    ? `${ZEC3_CONTRACT_ADDRESS.slice(0, 8)}...${ZEC3_CONTRACT_ADDRESS.slice(-6)}`
+    : ZEC3_CONTRACT_ADDRESS;
+
+  function handleCopy() {
+    navigator.clipboard.writeText(ZEC3_CONTRACT_ADDRESS).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <footer className="landing-footer">
+      <div className="landing-footer-inner">
+        <div className="footer-brand">
+          <strong>ZEC3 Fee Engine</strong>
+          <span>Built on Solana. Verifiable on-chain.</span>
+        </div>
+        <div className="footer-actions">
+          <a href={ZEC3_X_URL} target="_blank" rel="noreferrer" className="footer-link">
+            <span>@ZEC3solana</span>
+            <ArrowUpRight size={14} />
+          </a>
+          <button className="footer-ca" onClick={handleCopy} title={`Copy token contract address: ${ZEC3_CONTRACT_ADDRESS}`}>
+            <span className="footer-ca-label">Token CA</span>
+            <code>{displayedAddress}</code>
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+          </button>
+        </div>
+      </div>
+    </footer>
   );
 }
 
@@ -597,9 +634,7 @@ function LandingPage({ onEnter }: { onEnter: () => void }) {
             </div>
           </Reveal>
         </div>
-        <footer className="landing-footer">
-          <span>ZEC3 Fee Engine &bull; Built on Solana &bull; Verifiable on-chain</span>
-        </footer>
+        <LandingFooter />
       </section>
     </div>
   );
