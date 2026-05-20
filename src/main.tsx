@@ -597,12 +597,10 @@ function LandingPage({ onEnter }: { onEnter: () => void }) {
             </div>
           </Reveal>
         </div>
+        <footer className="landing-footer">
+          <span>ZEC3 Fee Engine &bull; Built on Solana &bull; Verifiable on-chain</span>
+        </footer>
       </section>
-
-      {/* Footer */}
-      <footer className="landing-footer">
-        <span>ZEC3 Fee Engine &bull; Built on Solana &bull; Verifiable on-chain</span>
-      </footer>
     </div>
   );
 }

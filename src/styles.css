@@ -2471,21 +2471,10 @@ html {
 
 .landing-section.cta-section {
   min-height: 92vh;
-  overflow: hidden;
+  overflow: visible;
   isolation: isolate;
   padding-top: 150px;
   padding-bottom: 150px;
-}
-
-.landing-section.cta-section::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background:
-    linear-gradient(180deg, rgba(19, 19, 22, 0.22), transparent 30%, transparent 70%, rgba(14, 14, 16, 0.45)),
-    radial-gradient(ellipse 80% 54% at 50% 50%, rgba(244, 183, 40, 0.08), transparent 68%);
 }
 
 .cta-section .section-inner {
@@ -2493,28 +2482,41 @@ html {
   z-index: 3;
 }
 
+.cta-section .landing-footer {
+  position: absolute;
+  right: 0;
+  bottom: 28px;
+  left: 0;
+  z-index: 3;
+  padding: 0 32px;
+}
+
 .zec3-cinematic-scroll {
   position: absolute;
-  inset: 0 -10vw;
+  inset: -24vh -10vw;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    rgba(0, 0, 0, 0.18) 13%,
-    black 29%,
-    black 71%,
-    rgba(0, 0, 0, 0.18) 87%,
+    rgba(0, 0, 0, 0.08) 10%,
+    rgba(0, 0, 0, 0.55) 20%,
+    black 31%,
+    black 69%,
+    rgba(0, 0, 0, 0.55) 80%,
+    rgba(0, 0, 0, 0.08) 90%,
     transparent 100%
   );
   mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    rgba(0, 0, 0, 0.18) 13%,
-    black 29%,
-    black 71%,
-    rgba(0, 0, 0, 0.18) 87%,
+    rgba(0, 0, 0, 0.08) 10%,
+    rgba(0, 0, 0, 0.55) 20%,
+    black 31%,
+    black 69%,
+    rgba(0, 0, 0, 0.55) 80%,
+    rgba(0, 0, 0, 0.08) 90%,
     transparent 100%
   );
   -webkit-mask-size: 100% 100%;
@@ -2831,7 +2833,7 @@ html {
   }
 
   .zec3-cinematic-scroll {
-    inset: 0 -18vw;
+    inset: -18vh -18vw;
   }
 
   .zec3-cinematic-track {
