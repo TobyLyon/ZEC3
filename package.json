@@ -1,0 +1,39 @@
+{
+  "name": "zec3-fee-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "dry-run": "tsx src/index.ts --dry-run",
+    "once": "tsx src/index.ts --once",
+    "daemon": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@pump-fun/pump-sdk": "^1.18.5",
+    "@solana/web3.js": "^1.98.4",
+    "bn.js": "^5.2.2",
+    "bs58": "^6.0.0",
+    "dotenv": "^16.6.1",
+    "lucide-react": "^0.561.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "simple-icons": "^16.20.0",
+    "viem": "^2.41.2",
+    "vite": "^7.2.7",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.2.0",
+    "@types/node": "^22.19.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
+    "playwright": "^1.60.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
