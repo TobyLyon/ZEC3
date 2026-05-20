@@ -9,7 +9,9 @@ import {
   BarChart3,
   Boxes,
   CircleDotDashed,
+  Check,
   Clock,
+  Copy,
   Gauge,
   Landmark,
   Layers3,
@@ -405,6 +407,31 @@ function BrandMarquee() {
   );
 }
 
+const ZEC3_CONTRACT_ADDRESS = import.meta.env.VITE_ZEC3_CONTRACT_ADDRESS || "TBA";
+
+function CopyCA() {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(ZEC3_CONTRACT_ADDRESS).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  const truncated = ZEC3_CONTRACT_ADDRESS.length > 12
+    ? `${ZEC3_CONTRACT_ADDRESS.slice(0, 6)}...${ZEC3_CONTRACT_ADDRESS.slice(-4)}`
+    : ZEC3_CONTRACT_ADDRESS;
+
+  return (
+    <button className="copy-ca" onClick={handleCopy} title="Copy contract address">
+      <span className="copy-ca-label">CA</span>
+      <span className="copy-ca-addr">{truncated}</span>
+      {copied ? <Check size={13} /> : <Copy size={13} />}
+    </button>
+  );
+}
+
 function LandingPage({ onEnter }: { onEnter: () => void }) {
   const [navScrolled, setNavScrolled] = useState(false);
 
@@ -463,6 +490,7 @@ function LandingPage({ onEnter }: { onEnter: () => void }) {
               <span>Read the Flywheel</span>
             </button>
           </div>
+          <CopyCA />
           <div className="scroll-indicator">
             <span>Scroll to explore</span>
             <div className="scroll-line" />
@@ -881,12 +909,12 @@ function App() {
   return (
     <main className="app-shell">
       <aside className="rail glass">
-        <div className="brand">
+        <button className="brand" onClick={() => { setShowDashboard(false); window.scrollTo({ top: 0 }); }}>
           <div className="brand-mark">
             <img src={zec3Assets.tokenImage} alt="" aria-hidden="true" />
           </div>
           <span>ZEC3</span>
-        </div>
+        </button>
         <nav aria-label="Dashboard navigation">
           {["Overview", "Positions", "Ledger", "Risk"].map((item) => (
             <button
