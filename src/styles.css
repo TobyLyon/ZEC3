@@ -239,6 +239,20 @@ p {
   border-color: rgba(255, 255, 255, 0.28);
 }
 
+.ghost-button:disabled,
+.trace-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
+.ghost-button:disabled:hover,
+.trace-button:disabled:hover {
+  color: var(--soft);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: none;
+}
+
 .ghost-button.solid {
   background: rgba(255, 255, 255, 0.1);
 }
@@ -446,6 +460,32 @@ p {
 .positions-table {
   display: flex;
   flex-direction: column;
+}
+
+.empty-state {
+  min-height: 150px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.empty-state strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.empty-state span {
+  max-width: 460px;
+  color: var(--soft);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .position-row {

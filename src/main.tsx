@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
+import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { siSolana, siZcash, type SimpleIcon } from "simple-icons";
 import {
@@ -138,103 +138,42 @@ const zec3Assets = {
 const stages: Stage[] = [
   {
     label: "Claim Fees",
-    status: "done",
-    amount: "14.82 SOL",
-    subtext: "Creator Vault collected",
+    status: "ready",
+    amount: "Not run",
+    subtext: "Needs project token mint",
     icon: BadgeDollarSign
   },
   {
     label: "Buy ZEC",
-    status: "active",
-    amount: "43.19 ZEC",
-    subtext: "Jupiter route prepared",
+    status: "queued",
+    amount: "Waiting",
+    subtext: "Runs after real fee claim",
     icon: Zap
   },
   {
     label: "ZEC Long",
     status: "queued",
-    amount: "$2,950",
-    subtext: "Jupiter isolated 1x",
+    amount: "Adapter needed",
+    subtext: "Perps execution not wired",
     icon: BarChart3
   },
   {
     label: "Profit Reserve",
     status: "queued",
-    amount: "$312",
-    subtext: "Realized PnL buffer",
+    amount: "$0",
+    subtext: "No realized PnL yet",
     icon: Activity
   },
   {
     label: "Airdrop",
     status: "ready",
-    amount: "4,821",
-    subtext: "Holder wallets queued",
+    amount: "Not configured",
+    subtext: "Snapshot adapter needed",
     icon: Wallet
   }
 ];
 
-const enginePositions: Position[] = [
-  {
-    id: "pos-zec-long-1",
-    asset: "ZEC",
-    side: "long",
-    status: "open",
-    entryPrice: 38.42,
-    size: 128.7,
-    sizeUnit: "ZEC",
-    notional: 4947,
-    leverage: "1x",
-    entryTime: "2025-05-18 14:22:08",
-    stopLoss: 32.66,
-    takeProfit: 52.80,
-    source: "Jupiter Perps"
-  },
-  {
-    id: "pos-zec-long-2",
-    asset: "ZEC",
-    side: "long",
-    status: "open",
-    entryPrice: 40.15,
-    size: 62.3,
-    sizeUnit: "ZEC",
-    notional: 2501,
-    leverage: "1x",
-    entryTime: "2025-05-19 09:44:31",
-    stopLoss: 34.13,
-    takeProfit: 55.00,
-    source: "Jupiter Perps"
-  },
-  {
-    id: "pos-sol-hold",
-    asset: "SOL",
-    side: "long",
-    status: "open",
-    entryPrice: 168.20,
-    size: 14.82,
-    sizeUnit: "SOL",
-    notional: 2493,
-    leverage: "1x",
-    entryTime: "2025-05-20 08:18:44",
-    stopLoss: null,
-    takeProfit: null,
-    source: "Creator Vault"
-  },
-  {
-    id: "pos-zec-pending",
-    asset: "ZEC",
-    side: "long",
-    status: "pending",
-    entryPrice: 0,
-    size: 43.19,
-    sizeUnit: "ZEC",
-    notional: 0,
-    leverage: "1x",
-    entryTime: "",
-    stopLoss: null,
-    takeProfit: null,
-    source: "Jupiter Route"
-  }
-];
+const enginePositions: Position[] = [];
 
 const allocations = [
   { label: "ZEC Spot", value: 30, color: "rgba(255,255,255,0.85)" },
@@ -243,36 +182,7 @@ const allocations = [
   { label: "Retained SOL", value: 10, color: "rgba(255,255,255,0.3)" }
 ];
 
-const initialLedger: LedgerItem[] = [
-  {
-    time: "09:18:44",
-    action: "Dry check completed",
-    value: "14.82 SOL simulated",
-    hash: "dry_8Kf2...9Lp",
-    chain: "Engine"
-  },
-  {
-    time: "09:12:03",
-    action: "Holder snapshot prepared",
-    value: "4,821 wallets",
-    hash: "5ng4...Tba1",
-    chain: "Solana"
-  },
-  {
-    time: "09:04:31",
-    action: "Jupiter long cap read",
-    value: "$250 max order",
-    hash: "JUP_22...91z",
-    chain: "Jupiter"
-  },
-  {
-    time: "08:55:18",
-    action: "Jupiter quote sampled",
-    value: "0.18% impact",
-    hash: "JUP_7q...Px",
-    chain: "Solana"
-  }
-];
+const initialLedger: LedgerItem[] = [];
 
 type StackBrand = {
   name: string;
@@ -408,6 +318,17 @@ function BrandMarquee() {
 }
 
 const ZEC3_CONTRACT_ADDRESS = import.meta.env.VITE_ZEC3_CONTRACT_ADDRESS || "TBA";
+const ENGINE_MODE = import.meta.env.VITE_ENGINE_MODE || "Prelaunch";
+
+function EmptyState({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div className="empty-state">
+      <CircleDotDashed size={18} />
+      <strong>{title}</strong>
+      <span>{detail}</span>
+    </div>
+  );
+}
 
 function CopyCA() {
   const [copied, setCopied] = useState(false);
@@ -585,20 +506,20 @@ function LandingPage({ onEnter }: { onEnter: () => void }) {
           </Reveal>
           <div className="stats-row">
             <Reveal delay={100} className="stat-card">
-              <strong>4,821</strong>
-              <span>Holders Queued</span>
+              <strong>{ENGINE_MODE}</strong>
+              <span>Engine Mode</span>
             </Reveal>
             <Reveal delay={200} className="stat-card">
-              <strong>$18.4K</strong>
-              <span>Jupiter Position</span>
+              <strong>0</strong>
+              <span>Live Runs</span>
             </Reveal>
             <Reveal delay={300} className="stat-card">
-              <strong>128.7</strong>
-              <span>ZEC Treasury</span>
+              <strong>0</strong>
+              <span>Open Positions</span>
             </Reveal>
             <Reveal delay={400} className="stat-card">
-              <strong>27</strong>
-              <span>Dry Runs Executed</span>
+              <strong>No ledger</strong>
+              <span>Public Status</span>
             </Reveal>
           </div>
         </div>
@@ -855,7 +776,7 @@ function PortfolioSummary({ positions, prices }: { positions: Position[]; prices
       </div>
       <div className="summary-item">
         <span>Airdrop Reserve</span>
-        <strong>$312</strong>
+        <strong>$0</strong>
       </div>
     </div>
   );
@@ -864,42 +785,14 @@ function PortfolioSummary({ positions, prices }: { positions: Position[]; prices
 function App() {
   const [showDashboard, setShowDashboard] = useState(false);
   const [selected, setSelected] = useState("Overview");
-  const [dryRuns, setDryRuns] = useState(27);
-  const [ledger, setLedger] = useState(initialLedger);
-  const [pulse, setPulse] = useState(false);
+  const ledger = initialLedger;
   const { prices, lastUpdate, loading } = useLivePrices(30_000);
 
-  const health = useMemo(() => Math.min(99, 84 + (dryRuns % 9)), [dryRuns]);
+  const health = ledger.length > 0 ? 84 : 0;
 
   function enterDashboard() {
     setShowDashboard(true);
     window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0 }));
-  }
-
-  function runDryCheck() {
-    const now = new Date();
-    const time = now.toLocaleTimeString("en-US", {
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
-    });
-    setDryRuns((value) => value + 1);
-    const solPrice = prices?.solana?.usd ?? 0;
-    setLedger((items) => [
-      {
-        time,
-        action: "Dry check completed",
-        value: solPrice > 0 ? `14.82 SOL (${fmtUsd(14.82 * solPrice)})` : "14.82 SOL simulated",
-        hash: `dry_${Math.random().toString(36).slice(2, 6)}...${Math.random()
-          .toString(36)
-          .slice(2, 5)}`,
-        chain: "Engine"
-      },
-      ...items.slice(0, 7)
-    ]);
-    setPulse(true);
-    window.setTimeout(() => setPulse(false), 900);
   }
 
   if (!showDashboard) {
@@ -952,17 +845,17 @@ function App() {
             </p>
           </div>
           <div className="actions">
-            <button className="trace-button" onClick={runDryCheck}>
+            <button className="trace-button" disabled title="Run dry checks from the secured CLI runner">
               <Play size={16} />
-              <span>Run Dry Check</span>
+              <span>CLI Dry Run</span>
             </button>
-            <button className="ghost-button">
+            <button className="ghost-button" onClick={() => setSelected("Ledger")}>
               <Boxes size={16} />
               <span>View Ledger</span>
             </button>
-            <button className="ghost-button solid">
+            <button className="ghost-button solid" disabled title="Live wallet signing stays in the secured runner">
               <Wallet size={16} />
-              <span>Connect Wallet</span>
+              <span>Local Signer</span>
             </button>
           </div>
         </header>
@@ -976,34 +869,43 @@ function App() {
             <div className="panel-heading compact">
               <div>
                 <h2>Open Positions</h2>
-                <p>{enginePositions.filter(p => p.status === "open").length} active &bull; {enginePositions.filter(p => p.status === "pending").length} pending</p>
+                <p>No live positions have been opened by the runner.</p>
               </div>
               <Activity size={18} />
             </div>
-            <div className="positions-header">
-              <span>Asset</span>
-              <span>Size</span>
-              <span>Entry</span>
-              <span>Mark</span>
-              <span>Value</span>
-              <span>uPnL</span>
-              <span>Lev</span>
-              <span>SL</span>
-              <span>TP</span>
-              <span>Source</span>
-              <span>Status</span>
-            </div>
-            <div className="positions-table">
-              {enginePositions.map((pos) => {
-                const coinId = getCoinIdForAsset(pos.asset);
-                const cp = coinId && prices?.[coinId] ? prices[coinId].usd : 0;
-                return <PositionRow key={pos.id} pos={pos} currentPrice={cp} />;
-              })}
-            </div>
+            {enginePositions.length > 0 ? (
+              <>
+                <div className="positions-header">
+                  <span>Asset</span>
+                  <span>Size</span>
+                  <span>Entry</span>
+                  <span>Mark</span>
+                  <span>Value</span>
+                  <span>uPnL</span>
+                  <span>Lev</span>
+                  <span>SL</span>
+                  <span>TP</span>
+                  <span>Source</span>
+                  <span>Status</span>
+                </div>
+                <div className="positions-table">
+                  {enginePositions.map((pos) => {
+                    const coinId = getCoinIdForAsset(pos.asset);
+                    const cp = coinId && prices?.[coinId] ? prices[coinId].usd : 0;
+                    return <PositionRow key={pos.id} pos={pos} currentPrice={cp} />;
+                  })}
+                </div>
+              </>
+            ) : (
+              <EmptyState
+                title="No live positions"
+                detail="The Jupiter perps adapter is not wired yet, so no position data is displayed."
+              />
+            )}
           </section>
 
           {/* Mechanism State — Compact */}
-          <section className={pulse ? "process-panel glass pulsing" : "process-panel glass"}>
+          <section className="process-panel glass">
             <div className="panel-heading">
               <div>
                 <h2>Engine Pipeline</h2>
@@ -1067,17 +969,24 @@ function App() {
               </div>
               <Landmark size={18} />
             </div>
-            <div className="ledger-table" role="table" aria-label="Latest signatures">
-              {ledger.map((item) => (
-                <div className="ledger-row" role="row" key={`${item.time}-${item.hash}`}>
-                  <span>{item.time}</span>
-                  <strong>{item.action}</strong>
-                  <span>{item.value}</span>
-                  <code>{item.hash}</code>
-                  <span className={`chain-badge chain-${item.chain.toLowerCase()}`}>{item.chain}</span>
-                </div>
-              ))}
-            </div>
+            {ledger.length > 0 ? (
+              <div className="ledger-table" role="table" aria-label="Latest signatures">
+                {ledger.map((item) => (
+                  <div className="ledger-row" role="row" key={`${item.time}-${item.hash}`}>
+                    <span>{item.time}</span>
+                    <strong>{item.action}</strong>
+                    <span>{item.value}</span>
+                    <code>{item.hash}</code>
+                    <span className={`chain-badge chain-${item.chain.toLowerCase()}`}>{item.chain}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                title="No ledger entries"
+                detail="Run the secured CLI with a configured token mint to create the first real ledger row."
+              />
+            )}
           </section>
         </section>
       </section>

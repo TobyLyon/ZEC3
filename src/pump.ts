@@ -1,9 +1,11 @@
-import { OnlinePumpSdk } from "@pump-fun/pump-sdk";
+import pumpSdk from "@pump-fun/pump-sdk";
 import { Commitment, Connection, Keypair } from "@solana/web3.js";
 import { sendInstructions } from "./solana.js";
 
+const { OnlinePumpSdk } = pumpSdk;
+
 export class PumpFees {
-  private readonly sdk: OnlinePumpSdk;
+  private readonly sdk: InstanceType<typeof OnlinePumpSdk>;
 
   constructor(
     private readonly connection: Connection,
