@@ -28,7 +28,7 @@ Required configuration:
 
 - Jupiter remains the venue for spot ZEC routing and SOL-to-USDC quote sizing. Flash Trade is selected for the ZEC perpetual exposure leg because its public docs list ZEC among supported assets and its TypeScript SDK is published for protocol integration. Live Flash orders should only be enabled after the SDK adapter and collateral route are reviewed.
 - Flash Trade live orders use the public transaction-builder API. When `FLASH_PERPS_ENABLED=true` and `DRY_RUN=false`, the runner requests an open-position transaction, signs it with the creator wallet, submits it to Solana, and records the signature. Each daemon pass also checks open Flash ZEC longs and pulls profit when `FLASH_PROFIT_PULL_MULTIPLE` is reached.
-- Holder airdrops are dry-run first. The holder snapshot command writes `HOLDER_SNAPSHOT_PATH`, and the dry-run command writes a proportional distribution plan to `AIRDROP_DRY_RUN_PATH`. Live sends require `DRY_RUN=false`, `AIRDROP_DRY_RUN=false`, and `--confirm-live-airdrop`.
+- Holder airdrops are dry-run first. The holder snapshot command writes `HOLDER_SNAPSHOT_PATH`, and the dry-run command writes a proportional distribution plan to `AIRDROP_DRY_RUN_PATH`. Live sends require `DRY_RUN=false`, `AIRDROP_DRY_RUN=false`, and `--confirm-live-airdrop`. By default, live holder rewards swap the SOL reward pool into the configured Solana ZEC mint and distribute ZEC SPL tokens to holder associated token accounts.
 - Pump fee collection uses the official `@pump-fun/pump-sdk`.
 - Pump V2 creator-fee collection can return wrapped SOL; the runner now closes the creator wSOL ATA after V2 collection to unwrap back to SOL.
 - The runner syncs `public/runtime/engine.json` after every recorded run so the dashboard can show fresh local activity without a separate manual sync step.
@@ -44,7 +44,7 @@ npm run holders:dry-run
 npm run dashboard:sync
 ```
 
-The snapshot pipeline pulls wallet-level holders from Birdeye, normalizes duplicate owners, removes configured exclusions, applies the minimum balance rule, and stores an immutable local JSON artifact. The dry-run then allocates the configured lamport amount across eligible holders without sending funds. Keep `AIRDROP_DRY_RUN=true` until the holder snapshot, exclusions, and generated distribution totals have been reviewed.
+The snapshot pipeline pulls wallet-level holders from Birdeye, normalizes duplicate owners, removes configured exclusions, applies the minimum balance rule, and stores an immutable local JSON artifact. The dry-run then allocates the configured lamport amount across eligible holders without sending funds. During live ZEC distributions, that lamport pool is swapped to ZEC on Solana and split by the same holder weights. Keep `AIRDROP_DRY_RUN=true` until the holder snapshot and generated distribution totals have been reviewed.
 
 `npm run dashboard:sync` converts the local runner ledger and holder snapshot into `public/runtime/engine.json`, which the site reads as its live dashboard artifact.
 

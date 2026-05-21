@@ -1,7 +1,10 @@
+import { PublicKey } from "@solana/web3.js";
 import { loadConfig } from "./config.js";
 import { syncEngineData } from "./dashboard-data.js";
 import { executeAirdropPlan } from "./airdrop.js";
+import { WSOL_MINT } from "./constants.js";
 import { readAirdropDryRunPlan } from "./holders.js";
+import { getJupiterQuote, swapWithJupiter } from "./jupiter.js";
 import { appendLedger } from "./ledger.js";
 import { createConnection } from "./solana.js";
 import { loadSolanaKeypair } from "./wallet.js";
@@ -36,9 +39,39 @@ async function main(): Promise<void> {
   const connection = createConnection(config.SOLANA_RPC_URL, config.COMMITMENT);
   const assignedLamports = BigInt(plan.totalAssignedLamports);
   const balance = await connection.getBalance(signer.publicKey, config.COMMITMENT);
+  const distributeZec = config.AIRDROP_DISTRIBUTION_ASSET === "ZEC";
 
   if (liveSend && BigInt(balance) <= assignedLamports) {
     throw new Error(`Signer balance ${balance} lamports is not enough for ${assignedLamports} lamports plus fees.`);
+  }
+
+  let zecDistribution:
+    | {
+        mint: PublicKey;
+        amountRaw: bigint;
+        swap?: { signature?: string; outputAmount: bigint; priceImpactPct: string };
+      }
+    | undefined;
+
+  if (distributeZec) {
+    const mint = new PublicKey(config.AIRDROP_DISTRIBUTION_TOKEN_MINT);
+    const quote = await getJupiterQuote({
+      inputMint: WSOL_MINT,
+      outputMint: mint.toBase58(),
+      amount: assignedLamports,
+      slippageBps: config.JUPITER_SLIPPAGE_BPS
+    });
+    const swap = await swapWithJupiter({
+      connection,
+      signer,
+      quote,
+      dryRun: !liveSend
+    });
+    zecDistribution = {
+      mint,
+      amountRaw: swap.outputAmount,
+      swap
+    };
   }
 
   const result = await executeAirdropPlan({
@@ -46,7 +79,14 @@ async function main(): Promise<void> {
     payer: signer,
     plan,
     commitment: config.COMMITMENT,
-    dryRun: !liveSend
+    dryRun: !liveSend,
+    distribution: zecDistribution
+      ? {
+          asset: "SPL_TOKEN",
+          mint: zecDistribution.mint,
+          amountRaw: zecDistribution.amountRaw
+        }
+      : { asset: "SOL" }
   });
 
   const ledger: RunLedger = {
@@ -57,9 +97,19 @@ async function main(): Promise<void> {
     holderAirdrop: {
       source: "holder-airdrop-plan",
       status: liveSend ? "sent" : "dry-run",
+      distributionAsset: distributeZec ? "ZEC" : "SOL",
+      distributionMint: zecDistribution?.mint.toBase58(),
       inputLamports: plan.inputLamports,
       totalAssignedLamports: plan.totalAssignedLamports,
+      zecSwap: zecDistribution?.swap
+        ? {
+            signature: zecDistribution.swap.signature,
+            outputAmount: zecDistribution.swap.outputAmount.toString(),
+            priceImpactPct: zecDistribution.swap.priceImpactPct
+          }
+        : undefined,
       totalSentLamports: result.totalSentLamports,
+      totalSentTokenAmount: result.totalSentTokenAmount,
       remainderLamports: plan.remainderLamports,
       recipientCount: plan.recipientCount,
       skippedRecipients: result.skippedRecipients,
@@ -81,6 +131,8 @@ async function main(): Promise<void> {
     live: liveSend,
     payer: signer.publicKey.toBase58(),
     planPath: config.AIRDROP_DRY_RUN_PATH,
+    distributionAsset: distributeZec ? "ZEC" : "SOL",
+    distributionMint: zecDistribution?.mint.toBase58(),
     ...result
   }, null, 2));
 }

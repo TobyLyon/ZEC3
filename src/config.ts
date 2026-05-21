@@ -41,7 +41,7 @@ const envSchema = z.object({
   FLASH_TAKE_PROFIT_PRICE: z.string().optional(),
   FLASH_STOP_LOSS_PRICE: z.string().optional(),
   FLASH_PROFIT_PULL_MULTIPLE: numberFromString.default(1.5),
-  FLASH_PROFIT_WITHDRAW_TOKEN_SYMBOL: z.string().default("USDC"),
+  FLASH_PROFIT_WITHDRAW_TOKEN_SYMBOL: z.string().default("ZEC"),
   DRY_RUN: boolFromString,
   INTERVAL_MS: intFromString.min(30_000),
   LEDGER_PATH: z.string().min(1),
@@ -53,6 +53,8 @@ const envSchema = z.object({
   AIRDROP_DRY_RUN: boolDefaultTrueFromString,
   AIRDROP_DRY_RUN_LAMPORTS: z.coerce.bigint().nonnegative().default(0n),
   AIRDROP_DRY_RUN_PATH: z.string().default("./data/airdrop-dry-run.json"),
+  AIRDROP_DISTRIBUTION_ASSET: z.enum(["ZEC", "SOL"]).default("ZEC"),
+  AIRDROP_DISTRIBUTION_TOKEN_MINT: z.string().optional(),
   PUBLIC_ENGINE_DATA_PATH: z.string().default("./public/runtime/engine.json")
 });
 
@@ -62,6 +64,7 @@ export type AppConfig = z.infer<typeof envSchema> & {
   FLASH_LONG_LEVERAGE: number;
   FLASH_LONG_MAX_ORDER_USDC: number;
   FLASH_PERPS_MARKET: string;
+  AIRDROP_DISTRIBUTION_TOKEN_MINT: string;
 };
 
 export function loadConfig(argv = process.argv): AppConfig {
@@ -92,6 +95,7 @@ export function loadConfig(argv = process.argv): AppConfig {
     FLASH_LONG_BPS: flashLongBps,
     FLASH_LONG_LEVERAGE: Math.min(Math.max(flashLongLeverage, 1), 10),
     FLASH_LONG_MAX_ORDER_USDC: flashLongMaxOrderUsdc,
+    AIRDROP_DISTRIBUTION_TOKEN_MINT: parsed.AIRDROP_DISTRIBUTION_TOKEN_MINT || parsed.ZEC_SOL_MINT,
     allocationTotalBps
   };
 }
