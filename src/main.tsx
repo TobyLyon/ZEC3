@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useRef, useState } from "react";
+import { StrictMode, useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { siSolana, siZcash, type SimpleIcon } from "simple-icons";
 import {
@@ -7,6 +7,7 @@ import {
   ArrowDownRight,
   BadgeDollarSign,
   BarChart3,
+  BookOpen,
   Boxes,
   CircleDotDashed,
   Check,
@@ -128,6 +129,8 @@ type LedgerItem = {
   hash: string;
   chain: string;
 };
+
+type AppView = "landing" | "docs" | "dashboard";
 
 const zec3Assets = {
   bubbleLogo: "/assets/zec3/bubble-text-logo.png",
@@ -390,7 +393,7 @@ function LandingFooter() {
   );
 }
 
-function LandingPage({ onEnter }: { onEnter: () => void }) {
+function LandingPage({ onEnter, onReadDocs }: { onEnter: () => void; onReadDocs: () => void }) {
   const [navScrolled, setNavScrolled] = useState(false);
 
   useEffect(() => {
@@ -443,7 +446,7 @@ function LandingPage({ onEnter }: { onEnter: () => void }) {
               <Play size={16} />
               <span>Open Dashboard</span>
             </button>
-            <button className="hero-secondary">
+            <button className="hero-secondary" onClick={onReadDocs}>
               <Layers3 size={16} />
               <span>Read the Flywheel</span>
             </button>
@@ -642,6 +645,232 @@ function LandingPage({ onEnter }: { onEnter: () => void }) {
 
 /* ── Formatters ── */
 
+const docSections = [
+  { id: "overview", label: "Overview" },
+  { id: "flywheel", label: "Flywheel Loop" },
+  { id: "launch", label: "Launch Inputs" },
+  { id: "holders", label: "Holder Airdrops" },
+  { id: "risk-controls", label: "Risk Controls" },
+  { id: "operations", label: "Operations" }
+];
+
+function FlywheelDiagram() {
+  const steps = [
+    { label: "Creator Fees", detail: "SOL fee vault", icon: BadgeDollarSign },
+    { label: "Buy ZEC", detail: "Jupiter route", icon: Zap },
+    { label: "ZEC Exposure", detail: "1x isolated cap", icon: BarChart3 },
+    { label: "Realize PnL", detail: "reserve gains", icon: Activity },
+    { label: "Airdrop", detail: "holders list", icon: Wallet }
+  ];
+
+  return (
+    <div className="docs-flywheel" aria-label="ZEC3 fee engine flywheel">
+      {steps.map((step, index) => {
+        const Icon = step.icon;
+        return (
+          <div className="docs-flywheel-node" key={step.label} style={{ "--node": index } as React.CSSProperties}>
+            <div className="docs-flywheel-icon"><Icon size={22} /></div>
+            <strong>{step.label}</strong>
+            <span>{step.detail}</span>
+          </div>
+        );
+      })}
+      <div className="docs-flywheel-core">
+        <img src={zec3Assets.tokenImage} alt="" aria-hidden="true" />
+        <strong>ZEC3</strong>
+        <span>Public treasury cycle</span>
+      </div>
+    </div>
+  );
+}
+
+function DocsPage({ onEnter, onBack }: { onEnter: () => void; onBack: () => void }) {
+  function jumpToSection(event: ReactMouseEvent<HTMLAnchorElement>, id: string) {
+    event.preventDefault();
+    window.history.replaceState(null, "", `#${id}`);
+    window.requestAnimationFrame(() => {
+      const target = document.getElementById(id);
+      if (!target) return;
+      const top = target.getBoundingClientRect().top + window.scrollY - 92;
+      setScrollTop(top);
+    });
+  }
+
+  return (
+    <main className="docs-page">
+      <header className="docs-nav">
+        <button className="docs-brand" onClick={onBack} aria-label="Back to landing">
+          <img src={zec3Assets.navLogo} alt="ZEC3" />
+        </button>
+        <nav aria-label="Flywheel documentation contents">
+          {docSections.map((section) => (
+            <a href={`#${section.id}`} onClick={(event) => jumpToSection(event, section.id)} key={section.id}>{section.label}</a>
+          ))}
+        </nav>
+        <button className="hero-cta compact" onClick={onEnter}>
+          <span>Dashboard</span>
+          <ArrowUpRight size={14} />
+        </button>
+      </header>
+
+      <section className="docs-hero" id="overview">
+        <div className="docs-eyebrow">
+          <BookOpen size={16} />
+          <span>Flywheel Documentation</span>
+        </div>
+        <h1>ZEC3 turns fee flow into a visible treasury engine.</h1>
+        <p>
+          This page explains what the site shows, what the runner does, and what must be
+          configured before the public dashboard can display live transactions, positions,
+          and holder distributions.
+        </p>
+        <div className="docs-hero-actions">
+          <button className="hero-cta" onClick={onEnter}>
+            <Play size={16} />
+            <span>Open Dashboard</span>
+          </button>
+          <a className="hero-secondary" href="#launch" onClick={(event) => jumpToSection(event, "launch")}>
+            <Layers3 size={16} />
+            <span>Launch Checklist</span>
+          </a>
+        </div>
+      </section>
+
+      <div className="docs-layout">
+        <aside className="docs-toc glass" aria-label="Table of contents">
+          <strong>Contents</strong>
+          {docSections.map((section) => (
+            <a href={`#${section.id}`} onClick={(event) => jumpToSection(event, section.id)} key={section.id}>{section.label}</a>
+          ))}
+        </aside>
+
+        <div className="docs-content">
+          <section className="docs-section glass" id="flywheel">
+            <div className="docs-section-heading">
+              <span>01</span>
+              <div>
+                <h2>The Flywheel Loop</h2>
+                <p>Each engine cycle is intentionally simple enough to audit from the outside.</p>
+              </div>
+            </div>
+            <FlywheelDiagram />
+            <div className="docs-grid">
+              <article>
+                <BadgeDollarSign size={20} />
+                <h3>Claim</h3>
+                <p>Creator fees are collected from the configured fee source when a run threshold is met.</p>
+              </article>
+              <article>
+                <Zap size={20} />
+                <h3>Route</h3>
+                <p>The runner uses the configured Solana RPC and Jupiter route caps before any swap executes.</p>
+              </article>
+              <article>
+                <Wallet size={20} />
+                <h3>Distribute</h3>
+                <p>Realized upside is reserved for holders once the token mint and holder list are available.</p>
+              </article>
+            </div>
+          </section>
+
+          <section className="docs-section glass" id="launch">
+            <div className="docs-section-heading">
+              <span>02</span>
+              <div>
+                <h2>Launch Inputs</h2>
+                <p>The interface is ready to display live state once these values are plugged in.</p>
+              </div>
+            </div>
+            <div className="docs-table" role="table" aria-label="Required launch inputs">
+              <div role="row">
+                <strong>Variable</strong>
+                <strong>Purpose</strong>
+                <strong>Status</strong>
+              </div>
+              <div role="row">
+                <code>PROJECT_TOKEN_MINT</code>
+                <span>Pump.fun token mint used by the backend runner and holder reconciliation.</span>
+                <em>Required</em>
+              </div>
+              <div role="row">
+                <code>VITE_ZEC3_CONTRACT_ADDRESS</code>
+                <span>Public token CA displayed in the landing page and footer copy controls.</span>
+                <em>Required at launch</em>
+              </div>
+              <div role="row">
+                <code>SOLANA_RPC_URL</code>
+                <span>RPC endpoint used by the runner to read balances, submit transactions, and verify signatures.</span>
+                <em>Required</em>
+              </div>
+              <div role="row">
+                <code>DRY_RUN</code>
+                <span>Safety switch. Keep enabled until wallet, caps, routes, and holder output are verified.</span>
+                <em>Prelaunch safe</em>
+              </div>
+            </div>
+          </section>
+
+          <section className="docs-section glass" id="holders">
+            <div className="docs-section-heading">
+              <span>03</span>
+              <div>
+                <h2>Holder List and Airdrops</h2>
+                <p>Distributions should only activate after the token mint and holder snapshot source are finalized.</p>
+              </div>
+            </div>
+            <div className="docs-timeline">
+              <div><strong>1</strong><span>Acquire holder balances from the canonical mint.</span></div>
+              <div><strong>2</strong><span>Filter ineligible wallets and normalize balances.</span></div>
+              <div><strong>3</strong><span>Generate a dry-run distribution ledger before any live send.</span></div>
+              <div><strong>4</strong><span>Publish transaction signatures back into the dashboard ledger.</span></div>
+            </div>
+          </section>
+
+          <section className="docs-section glass" id="risk-controls">
+            <div className="docs-section-heading">
+              <span>04</span>
+              <div>
+                <h2>Risk Controls</h2>
+                <p>The dashboard exposes hard caps that should match the runner configuration.</p>
+              </div>
+            </div>
+            <div className="docs-risk-grid">
+              <Metric label="Max Leverage" value="1x" suffix="isolated" />
+              <Metric label="Max Order" value="$250" suffix="IOC" />
+              <Metric label="Stop Loss" value="-15%" suffix="manual breaker" />
+              <Metric label="Slippage Cap" value="10%" suffix="Jupiter" />
+            </div>
+          </section>
+
+          <section className="docs-section glass" id="operations">
+            <div className="docs-section-heading">
+              <span>05</span>
+              <div>
+                <h2>Operational Readiness</h2>
+                <p>What the smoke tests should prove before flipping from prelaunch to live.</p>
+              </div>
+            </div>
+            <div className="docs-checklist">
+              {[
+                "Landing page loads with a clear prelaunch CA fallback.",
+                "Flywheel docs route opens from the hero button and table of contents anchors work.",
+                "Dashboard opens without live positions or ledger data and shows empty states clearly.",
+                "Build passes without token env vars, then displays configured values after env injection.",
+                "Runner remains dry-run until wallet, token mint, RPC, route caps, and holder snapshot are verified."
+              ].map((item) => (
+                <div key={item}>
+                  <Check size={16} />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 function fmtUsd(n: number, decimals = 2) {
   return n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
@@ -825,27 +1054,91 @@ function PortfolioSummary({ positions, prices }: { positions: Position[]; prices
   );
 }
 
+function getViewFromHash(): AppView {
+  if (window.location.hash === "#dashboard") return "dashboard";
+  if (docSections.some((section) => window.location.hash === `#${section.id}`)) return "docs";
+  return "landing";
+}
+
+function setScrollTop(top: number) {
+  const nextTop = Math.max(0, top);
+  window.scrollTo({ top: nextTop, left: 0, behavior: "auto" });
+  if (document.scrollingElement) document.scrollingElement.scrollTop = nextTop;
+  document.documentElement.scrollTop = nextTop;
+  document.body.scrollTop = nextTop;
+}
+
+function scrollToRouteTarget(view: AppView) {
+  window.setTimeout(() => {
+    if (view !== "docs") {
+      setScrollTop(0);
+      return;
+    }
+    const id = window.location.hash.slice(1) || "overview";
+    const target = document.getElementById(id);
+    if (!target) return;
+    const top = target.getBoundingClientRect().top + window.scrollY - 92;
+    setScrollTop(top);
+  }, 0);
+}
+
 function App() {
-  const [showDashboard, setShowDashboard] = useState(false);
+  const [view, setView] = useState<AppView>(() => getViewFromHash());
+  const [routeHash, setRouteHash] = useState(() => window.location.hash);
   const [selected, setSelected] = useState("Overview");
   const ledger = initialLedger;
   const { prices, lastUpdate, loading } = useLivePrices(30_000);
 
   const health = ledger.length > 0 ? 84 : 0;
 
+  useEffect(() => {
+    const syncRoute = () => {
+      setRouteHash(window.location.hash);
+      const nextView = getViewFromHash();
+      setView(nextView);
+    };
+    window.addEventListener("hashchange", syncRoute);
+    syncRoute();
+    return () => window.removeEventListener("hashchange", syncRoute);
+  }, []);
+
+  useLayoutEffect(() => {
+    scrollToRouteTarget(view);
+  }, [view, routeHash]);
+
   function enterDashboard() {
-    setShowDashboard(true);
-    window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0 }));
+    setView("dashboard");
+    setRouteHash("#dashboard");
+    window.history.replaceState(null, "", "#dashboard");
+    window.requestAnimationFrame(() => setScrollTop(0));
   }
 
-  if (!showDashboard) {
-    return <LandingPage onEnter={enterDashboard} />;
+  function openDocs() {
+    setView("docs");
+    setRouteHash("#overview");
+    window.history.replaceState(null, "", "#overview");
+    window.requestAnimationFrame(() => setScrollTop(0));
+  }
+
+  function openLanding() {
+    setView("landing");
+    setRouteHash("");
+    window.history.replaceState(null, "", window.location.pathname);
+    window.requestAnimationFrame(() => setScrollTop(0));
+  }
+
+  if (view === "landing") {
+    return <LandingPage onEnter={enterDashboard} onReadDocs={openDocs} />;
+  }
+
+  if (view === "docs") {
+    return <DocsPage onEnter={enterDashboard} onBack={openLanding} />;
   }
 
   return (
     <main className="app-shell">
       <aside className="rail glass">
-        <button className="brand" onClick={() => { setShowDashboard(false); window.scrollTo({ top: 0 }); }}>
+        <button className="brand" onClick={openLanding}>
           <div className="brand-mark">
             <img src={zec3Assets.tokenImage} alt="" aria-hidden="true" />
           </div>
