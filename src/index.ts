@@ -4,7 +4,7 @@ import { syncEngineData } from "./dashboard-data.js";
 import { getJupiterQuote, swapWithJupiter } from "./jupiter.js";
 import { appendLedger } from "./ledger.js";
 import { allocateLamports } from "./math.js";
-import { planFlashPerpsLong } from "./flash-perps.js";
+import { executeFlashPerpsLong } from "./flash-perps.js";
 import { PumpFees } from "./pump.js";
 import { createConnection } from "./solana.js";
 import { loadSolanaKeypair } from "./wallet.js";
@@ -20,6 +20,12 @@ async function appendLedgerAndSync(config: AppConfig, ledger: RunLedger): Promis
     projectTokenMint: config.PROJECT_TOKEN_MINT,
     dryRun: config.DRY_RUN
   });
+}
+
+function capInputLamports(inputLamports: bigint, quotedNotionalUsdc: number, cappedNotionalUsdc: number): bigint {
+  if (quotedNotionalUsdc <= 0 || cappedNotionalUsdc >= quotedNotionalUsdc) return inputLamports;
+  const scaled = Number(inputLamports) * (cappedNotionalUsdc / quotedNotionalUsdc);
+  return BigInt(Math.max(0, Math.floor(scaled)));
 }
 
 async function runOnce(config = loadConfig()): Promise<void> {
@@ -94,16 +100,25 @@ async function runOnce(config = loadConfig()): Promise<void> {
     });
     const quotedNotionalUsdc = Number(solUsdcQuote.outAmount) / 1_000_000;
     const cappedNotionalUsdc = Math.min(quotedNotionalUsdc, config.FLASH_LONG_MAX_ORDER_USDC);
+    const cappedInputLamports = capInputLamports(flashLongLamports, quotedNotionalUsdc, cappedNotionalUsdc);
 
-    ledger.flashLong = planFlashPerpsLong({
+    ledger.flashLong = await executeFlashPerpsLong({
+      connection,
+      signer: creator,
       market: config.FLASH_PERPS_MARKET,
       pool: config.FLASH_POOL,
+      apiUrl: config.FLASH_API_URL,
+      inputTokenSymbol: config.FLASH_INPUT_TOKEN_SYMBOL,
+      slippagePercentage: config.FLASH_SLIPPAGE_PERCENTAGE,
       enabled: config.FLASH_PERPS_ENABLED,
       dryRun: config.DRY_RUN,
-      inputLamports: flashLongLamports,
+      inputLamports: cappedInputLamports,
       quotedNotionalUsdc,
       cappedNotionalUsdc,
-      leverage: config.FLASH_LONG_LEVERAGE
+      leverage: config.FLASH_LONG_LEVERAGE,
+      takeProfit: config.FLASH_TAKE_PROFIT_PRICE,
+      stopLoss: config.FLASH_STOP_LOSS_PRICE,
+      commitment: config.COMMITMENT
     });
   }
 
