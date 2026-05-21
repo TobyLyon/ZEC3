@@ -1,0 +1,72 @@
+{
+  "generatedAt": "2026-05-21T16:58:25.395Z",
+  "mode": "live",
+  "projectTokenMint": "2jfpCbcg66PK8Xzjm1rjqgJ7ESKWCN9DPYGUjn8Ppump",
+  "ledger": [
+    {
+      "time": "May 21, 09:58 AM",
+      "action": "ZEC long plan",
+      "value": "$82.90",
+      "hash": "4gX2wE...mdLCw8",
+      "chain": "Flash"
+    },
+    {
+      "time": "May 21, 09:57 AM",
+      "action": "ZEC long plan",
+      "value": "$82.90",
+      "hash": "dry-run",
+      "chain": "Flash"
+    }
+  ],
+  "positions": [
+    {
+      "id": "zec-long-2026-05-21T16:58:25.378Z",
+      "asset": "ZEC",
+      "side": "long",
+      "status": "pending",
+      "entryPrice": 0,
+      "size": 82.900142,
+      "sizeUnit": "USD",
+      "notional": 82.900142,
+      "leverage": "3x",
+      "entryTime": "2026-05-21T16:58:25.378Z",
+      "stopLoss": null,
+      "takeProfit": null,
+      "source": "Flash Trade: submitted"
+    }
+  ],
+  "stages": [
+    {
+      "label": "Claim Fees",
+      "status": "ready",
+      "amount": "Not run",
+      "subtext": "Pump creator vault"
+    },
+    {
+      "label": "Buy ZEC",
+      "status": "queued",
+      "amount": "Waiting",
+      "subtext": "Jupiter spot route"
+    },
+    {
+      "label": "ZEC Long",
+      "status": "active",
+      "amount": "$82.90",
+      "subtext": "Flash Trade: submitted"
+    },
+    {
+      "label": "Profit Reserve",
+      "status": "queued",
+      "amount": "0 SOL",
+      "subtext": "No realized PnL yet"
+    },
+    {
+      "label": "Airdrop",
+      "status": "queued",
+      "amount": "No snapshot",
+      "subtext": "Fetch holder snapshot"
+    }
+  ],
+  "holderSnapshot": null,
+  "airdropReserveLamports": "0"
+}
