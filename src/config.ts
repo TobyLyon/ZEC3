@@ -40,6 +40,8 @@ const envSchema = z.object({
   FLASH_SLIPPAGE_PERCENTAGE: z.string().default("0.8"),
   FLASH_TAKE_PROFIT_PRICE: z.string().optional(),
   FLASH_STOP_LOSS_PRICE: z.string().optional(),
+  FLASH_PROFIT_PULL_MULTIPLE: numberFromString.default(1.5),
+  FLASH_PROFIT_WITHDRAW_TOKEN_SYMBOL: z.string().default("USDC"),
   DRY_RUN: boolFromString,
   INTERVAL_MS: intFromString.min(30_000),
   LEDGER_PATH: z.string().min(1),

@@ -83,7 +83,7 @@ async function main(): Promise<void> {
       status: env("FLASH_PERPS_ENABLED") === "true" ? "warning" : "warning",
       detail:
         env("FLASH_PERPS_ENABLED") === "true"
-          ? `Flash routing selected for ${env("FLASH_PERPS_MARKET") || "ZEC"} through ${env("FLASH_POOL") || "Crypto.1"}; confirm collateral routing before live orders.`
+          ? `Flash routing selected for ${env("FLASH_PERPS_MARKET") || "ZEC"} through ${env("FLASH_POOL") || "Crypto.1"}; profit pull at ${env("FLASH_PROFIT_PULL_MULTIPLE") || "1.5"}x.`
           : "Flash perps execution is disabled; spot ZEC routing remains available."
     },
     {

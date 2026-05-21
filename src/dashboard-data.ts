@@ -105,12 +105,32 @@ function ledgerRows(runs: RunLedger[]): RuntimeLedgerItem[] {
     }
     const longPlan = run.flashLong;
     if (longPlan && typeof longPlan === "object") {
-      const result = longPlan as { status?: string; cappedNotionalUsdc?: number; venue?: string };
+      const result = longPlan as { status?: string; signature?: string; cappedNotionalUsdc?: number; venue?: string };
       rows.push({
         time,
         action: "ZEC long plan",
         value: result.cappedNotionalUsdc ? `$${result.cappedNotionalUsdc.toFixed(2)}` : "queued",
-        hash: result.status ?? "pending",
+        hash: result.signature ? shortHash(result.signature) : result.status ?? "pending",
+        chain: result.venue?.includes("Flash") ? "Flash" : "ZEC3"
+      });
+    }
+    if (run.flashProfitPull && typeof run.flashProfitPull === "object") {
+      const result = run.flashProfitPull as {
+        status?: string;
+        signature?: string;
+        positionMultiple?: number;
+        triggerMultiple?: number;
+        venue?: string;
+      };
+      rows.push({
+        time,
+        action: "Profit pull",
+        value: result.positionMultiple
+          ? `${result.positionMultiple.toFixed(2)}x`
+          : result.triggerMultiple
+            ? `${result.triggerMultiple.toFixed(2)}x trigger`
+            : "checked",
+        hash: result.signature ? shortHash(result.signature) : result.status ?? "checked",
         chain: result.venue?.includes("Flash") ? "Flash" : "ZEC3"
       });
     }

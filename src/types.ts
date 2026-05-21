@@ -28,6 +28,7 @@ export type RunLedger = {
   };
   solZec?: unknown;
   flashLong?: unknown;
+  flashProfitPull?: unknown;
   holderAirdrop?: unknown;
   skippedReason?: string;
 };

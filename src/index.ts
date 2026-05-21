@@ -4,7 +4,7 @@ import { syncEngineData } from "./dashboard-data.js";
 import { getJupiterQuote, swapWithJupiter } from "./jupiter.js";
 import { appendLedger } from "./ledger.js";
 import { allocateLamports } from "./math.js";
-import { executeFlashPerpsLong } from "./flash-perps.js";
+import { executeFlashPerpsLong, executeFlashProfitPull } from "./flash-perps.js";
 import { PumpFees } from "./pump.js";
 import { createConnection } from "./solana.js";
 import { loadSolanaKeypair } from "./wallet.js";
@@ -56,6 +56,21 @@ async function runOnce(config = loadConfig()): Promise<void> {
     signatureV2: collectResult.signatureV2,
     unwrapSignature: collectResult.unwrapSignature
   };
+
+  if (config.FLASH_PROFIT_PULL_MULTIPLE > 1) {
+    ledger.flashProfitPull = await executeFlashProfitPull({
+      connection,
+      signer: creator,
+      market: config.FLASH_PERPS_MARKET,
+      apiUrl: config.FLASH_API_URL,
+      enabled: config.FLASH_PERPS_ENABLED,
+      dryRun: config.DRY_RUN,
+      triggerMultiple: config.FLASH_PROFIT_PULL_MULTIPLE,
+      withdrawTokenSymbol: config.FLASH_PROFIT_WITHDRAW_TOKEN_SYMBOL,
+      slippagePercentage: config.FLASH_SLIPPAGE_PERCENTAGE,
+      commitment: config.COMMITMENT
+    });
+  }
 
   if (claimed < config.MIN_CLAIMED_LAMPORTS) {
     ledger.skippedReason = `claimed ${claimed} lamports is below MIN_CLAIMED_LAMPORTS`;
