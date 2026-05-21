@@ -91,6 +91,128 @@ function useLivePrices(intervalMs = 30_000) {
   return { prices, lastUpdate, error, loading };
 }
 
+const DEFAULT_LIVE_CREATOR_PUBLIC_KEY = "Dh3jsM3ALr4xdg2CueyR4N4rNAAFLvXASGeQy1gnf33v";
+
+type FlashPositionApiRow = {
+  key?: string;
+  sideUi?: string;
+  marketSymbol?: string;
+  collateralSymbol?: string;
+  entryPriceUi?: string;
+  sizeAmountUi?: string;
+  sizeUsdUi?: string;
+  collateralAmountUi?: string;
+  collateralUsdUi?: string;
+  pnlWithFeeUsdUi?: string;
+  pnlPercentageWithFee?: string;
+  pnlWithoutFeeUsdUi?: string;
+  liquidationPriceUi?: string;
+  leverageUi?: string;
+};
+
+function numericUi(value?: string): number {
+  if (!value) return 0;
+  const parsed = Number(value.replace(/[$,%]/g, "").replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+async function fetchFlashPositions(owner: string): Promise<FlashPositionApiRow[]> {
+  const apiUrl = (import.meta.env.VITE_FLASH_API_URL || "https://flashapi.trade").replace(/\/$/, "");
+  const path = `/positions/owner/${owner}?includePnlInLeverageDisplay=true`;
+  const urls = [
+    `/api/flash-positions?owner=${encodeURIComponent(owner)}`,
+    `${apiUrl}${path}`
+  ];
+
+  for (const url of urls) {
+    try {
+      const response = await fetch(`${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { Accept: "application/json" }
+      });
+      if (!response.ok) continue;
+      const data = await response.json();
+      return Array.isArray(data) ? data as FlashPositionApiRow[] : [];
+    } catch {
+      continue;
+    }
+  }
+
+  return [];
+}
+
+function mergeFlashRuntimeData(base: RuntimeEngineData | null, flashRows: FlashPositionApiRow[]): RuntimeEngineData | null {
+  const zecLongs = flashRows.filter((row) =>
+    row.marketSymbol?.toUpperCase() === "ZEC" && row.sideUi?.toUpperCase() === "LONG"
+  );
+  if (zecLongs.length === 0) return base;
+
+  const generatedAt = new Date().toISOString();
+  const positions: Position[] = zecLongs.map((row) => {
+    const notional = numericUi(row.sizeUsdUi);
+    const leverage = numericUi(row.leverageUi);
+    return {
+      id: row.key ?? `flash-zec-${generatedAt}`,
+      asset: "ZEC",
+      side: "long",
+      status: "open",
+      entryPrice: numericUi(row.entryPriceUi),
+      size: numericUi(row.sizeAmountUi),
+      sizeUnit: "ZEC",
+      notional,
+      leverage: leverage ? `${leverage.toFixed(2)}x` : "3x",
+      entryTime: generatedAt,
+      stopLoss: numericUi(row.liquidationPriceUi) || null,
+      takeProfit: null,
+      source: `Flash live: ${row.pnlWithFeeUsdUi ?? "$0.00"} (${row.pnlPercentageWithFee ?? "0"}%)`
+    };
+  });
+
+  const primary = zecLongs[0];
+  const liveLedger: LedgerItem = {
+    time: "Live",
+    action: "Flash position live",
+    value: `${primary.pnlWithFeeUsdUi ?? "$0.00"} PnL`,
+    hash: primary.key ? `${primary.key.slice(0, 6)}...${primary.key.slice(-6)}` : "open",
+    chain: "Flash"
+  };
+
+  const stages = base?.stages?.length
+    ? base.stages.map((stage) =>
+        stage.label === "ZEC Long"
+          ? {
+              ...stage,
+              status: "active" as const,
+              amount: `$${numericUi(primary.sizeUsdUi).toFixed(2)}`,
+              subtext: `Flash live PnL ${primary.pnlWithFeeUsdUi ?? "$0.00"}`
+            }
+          : stage
+      )
+    : [
+        { label: "Claim Fees", status: "ready" as const, amount: "Not run", subtext: "Pump creator vault" },
+        { label: "Buy ZEC", status: "queued" as const, amount: "Waiting", subtext: "Jupiter spot route" },
+        {
+          label: "ZEC Long",
+          status: "active" as const,
+          amount: `$${numericUi(primary.sizeUsdUi).toFixed(2)}`,
+          subtext: `Flash live PnL ${primary.pnlWithFeeUsdUi ?? "$0.00"}`
+        },
+        { label: "Profit Reserve", status: "queued" as const, amount: "0 SOL", subtext: "No realized PnL yet" },
+        { label: "Airdrop", status: "queued" as const, amount: "No snapshot", subtext: "Fetch holder snapshot" }
+      ];
+
+  return {
+    generatedAt,
+    mode: "live",
+    projectTokenMint: base?.projectTokenMint ?? "TBA",
+    ledger: [liveLedger, ...(base?.ledger ?? []).filter((row) => row.action !== liveLedger.action)].slice(0, 20),
+    positions,
+    stages,
+    holderSnapshot: base?.holderSnapshot ?? null,
+    airdropReserveLamports: base?.airdropReserveLamports ?? "0"
+  };
+}
+
 function useEngineData(intervalMs = 20_000) {
   const [data, setData] = useState<RuntimeEngineData | null>(null);
 
@@ -98,15 +220,23 @@ function useEngineData(intervalMs = 20_000) {
     let cancelled = false;
 
     async function fetchEngineData() {
+      let nextData: RuntimeEngineData | null = null;
       try {
         const response = await fetch(`/runtime/engine.json?t=${Date.now()}`, { cache: "no-store" });
-        if (response.status === 404) return;
-        if (!response.ok) throw new Error(`Engine data ${response.status}`);
-        const nextData = (await response.json()) as RuntimeEngineData;
-        if (!cancelled) setData(nextData);
+        if (response.ok) {
+          nextData = (await response.json()) as RuntimeEngineData;
+        }
       } catch {
-        if (!cancelled) setData(null);
+        nextData = null;
       }
+
+      const owner = import.meta.env.VITE_CREATOR_PUBLIC_KEY || DEFAULT_LIVE_CREATOR_PUBLIC_KEY;
+      if (owner) {
+        const flashRows = await fetchFlashPositions(owner);
+        nextData = mergeFlashRuntimeData(nextData, flashRows);
+      }
+
+      if (!cancelled) setData(nextData);
     }
 
     fetchEngineData();
