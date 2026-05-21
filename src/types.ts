@@ -16,7 +16,8 @@ export type RunLedger = {
     beforeLamports: string;
     afterLamports: string;
     claimedLamports: string;
-    signature?: string;
+    signatureV1?: string;
+    signatureV2?: string;
   };
   allocations?: {
     solZecLamports: string;

@@ -33,7 +33,8 @@ async function runOnce(): Promise<void> {
     beforeLamports: before.toString(),
     afterLamports: after.toString(),
     claimedLamports: claimed.toString(),
-    signature: collectResult.signature
+    signatureV1: collectResult.signatureV1,
+    signatureV2: collectResult.signatureV2
   };
 
   if (claimed < config.MIN_CLAIMED_LAMPORTS) {

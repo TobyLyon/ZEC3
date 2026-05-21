@@ -88,7 +88,7 @@ function ledgerRows(runs: RunLedger[]): RuntimeLedgerItem[] {
         time,
         action: run.dryRun ? "Fee claim dry-run" : "Claimed fees",
         value: formatSol(run.claim.claimedLamports),
-        hash: shortHash(run.claim.signature),
+        hash: shortHash(run.claim.signatureV1 ?? run.claim.signatureV2),
         chain: "Solana"
       });
     }
