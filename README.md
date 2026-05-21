@@ -4,7 +4,7 @@ Automates the creator-fee loop:
 
 1. collect Pump.fun creator fees,
 2. buy wrapped ZEC on Solana,
-3. size a ZEC long through Jupiter,
+3. plan capped ZEC perpetual exposure through Flash Trade,
 4. reserve realized long profits for token-holder airdrops.
 
 The implementation is dry-run first. Set `DRY_RUN=false` only after the wallet, token mint, RPC, and trade caps are configured.
@@ -26,9 +26,11 @@ Required configuration:
 
 ## Important Operating Notes
 
-- Jupiter is now the venue for both spot ZEC routing and the planned ZEC long leg. The current runner records the long sizing and cap in the ledger; wire a dedicated Jupiter perps execution adapter before running that leg live.
-- Holder airdrops are dry-run first. The holder snapshot command writes `HOLDER_SNAPSHOT_PATH`, and the dry-run command writes a proportional distribution plan to `AIRDROP_DRY_RUN_PATH`.
+- Jupiter remains the venue for spot ZEC routing and SOL-to-USDC quote sizing. Flash Trade is selected for the ZEC perpetual exposure leg because its public docs list ZEC among supported assets and its TypeScript SDK is published for protocol integration. Live Flash orders should only be enabled after the SDK adapter and collateral route are reviewed.
+- Holder airdrops are dry-run first. The holder snapshot command writes `HOLDER_SNAPSHOT_PATH`, and the dry-run command writes a proportional distribution plan to `AIRDROP_DRY_RUN_PATH`. Live sends require `DRY_RUN=false`, `AIRDROP_DRY_RUN=false`, and `--confirm-live-airdrop`.
 - Pump fee collection uses the official `@pump-fun/pump-sdk`.
+- Pump V2 creator-fee collection can return wrapped SOL; the runner now closes the creator wSOL ATA after V2 collection to unwrap back to SOL.
+- The runner syncs `public/runtime/engine.json` after every recorded run so the dashboard can show fresh local activity without a separate manual sync step.
 
 ## Holder Snapshot Pipeline
 
@@ -52,6 +54,8 @@ npm run once      # execute one pass if DRY_RUN=false
 npm run daemon    # repeat forever every INTERVAL_MS
 npm run holders:snapshot # fetch and write the holder snapshot after launch
 npm run holders:dry-run  # generate the proportional holder airdrop plan
+npm run airdrop:send -- --dry-run # simulate sending the generated airdrop plan
+npm run airdrop:send -- --confirm-live-airdrop # live send, requires live env flags
 npm run dashboard:sync   # publish local runtime artifacts for the frontend
 npm run readiness # print launch readiness checks without exposing secrets
 npm run check     # TypeScript check

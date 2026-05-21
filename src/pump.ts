@@ -1,5 +1,5 @@
 import pumpSdk from "@pump-fun/pump-sdk";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { createCloseAccountInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Commitment, Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { WSOL_MINT } from "./constants.js";
 import { sendInstructions } from "./solana.js";
@@ -23,7 +23,7 @@ export class PumpFees {
     return BigInt(balance.toString());
   }
 
-  async collect(): Promise<{ signatureV1?: string; signatureV2?: string }> {
+  async collect(): Promise<{ signatureV1?: string; signatureV2?: string; unwrapSignature?: string }> {
     const wsolMint = new PublicKey(WSOL_MINT);
 
     const [v1Instructions, v2Instructions] = await Promise.all([
@@ -48,6 +48,7 @@ export class PumpFees {
 
     let signatureV1: string | undefined;
     let signatureV2: string | undefined;
+    let unwrapSignature: string | undefined;
 
     if (hasV1) {
       signatureV1 = await sendInstructions({
@@ -65,8 +66,28 @@ export class PumpFees {
         instructions: v2Instructions,
         commitment: this.commitment
       });
+      unwrapSignature = await this.unwrapWsol(wsolMint);
     }
 
-    return { signatureV1, signatureV2 };
+    return { signatureV1, signatureV2, unwrapSignature };
+  }
+
+  private async unwrapWsol(wsolMint: PublicKey): Promise<string | undefined> {
+    const wsolAta = await getAssociatedTokenAddress(wsolMint, this.creator.publicKey);
+    const ataInfo = await this.connection.getAccountInfo(wsolAta);
+    if (!ataInfo) return undefined;
+
+    const closeIx = createCloseAccountInstruction(
+      wsolAta,
+      this.creator.publicKey,
+      this.creator.publicKey
+    );
+
+    return sendInstructions({
+      connection: this.connection,
+      payer: this.creator,
+      instructions: [closeIx],
+      commitment: this.commitment
+    });
   }
 }

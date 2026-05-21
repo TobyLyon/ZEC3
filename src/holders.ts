@@ -266,6 +266,10 @@ export function buildAirdropDryRunPlan(snapshot: HolderSnapshot, amountLamports:
   };
 }
 
+export async function readAirdropDryRunPlan(path: string): Promise<AirdropDryRunPlan> {
+  return JSON.parse(await readFile(path, "utf8")) as AirdropDryRunPlan;
+}
+
 export async function writeAirdropDryRunPlan(path: string, plan: AirdropDryRunPlan): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, `${JSON.stringify(plan, null, 2)}\n`, "utf8");

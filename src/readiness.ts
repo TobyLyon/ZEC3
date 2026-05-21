@@ -27,7 +27,8 @@ function hasMint(value: string): boolean {
 }
 
 function allocationTotal(): number {
-  return Number(env("SOL_ZEC_BPS") || 0) + Number(env("JUPITER_LONG_BPS") || 0) + Number(env("HOLDER_AIRDROP_BPS") || 0);
+  const flashLongBps = Number(env("FLASH_LONG_BPS") || 0);
+  return Number(env("SOL_ZEC_BPS") || 0) + flashLongBps + Number(env("HOLDER_AIRDROP_BPS") || 0);
 }
 
 async function main(): Promise<void> {
@@ -75,6 +76,15 @@ async function main(): Promise<void> {
       label: "Holder data provider",
       status: env("BIRDEYE_API_KEY") ? "ready" : "warning",
       detail: env("BIRDEYE_API_KEY") ? "Birdeye API key is present." : "Add BIRDEYE_API_KEY before fetching holder snapshots."
+    },
+    {
+      id: "flash-perps",
+      label: "Flash Trade",
+      status: env("FLASH_PERPS_ENABLED") === "true" ? "warning" : "warning",
+      detail:
+        env("FLASH_PERPS_ENABLED") === "true"
+          ? `Flash routing selected for ${env("FLASH_PERPS_MARKET") || "ZEC"} through ${env("FLASH_POOL") || "Crypto.1"}; confirm collateral routing before live orders.`
+          : "Flash perps execution is disabled; spot ZEC routing remains available."
     },
     {
       id: "exclusions",

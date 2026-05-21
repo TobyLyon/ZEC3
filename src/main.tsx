@@ -31,7 +31,7 @@ import "./styles.css";
 
 /* ── Live Price API (CoinGecko free, no key) ── */
 
-type CoinId = "solana" | "zcash" | "jupiter-exchange-solana";
+type CoinId = "solana" | "zcash";
 type PriceData = {
   usd: number;
   usd_24h_change: number;
@@ -40,11 +40,10 @@ type PriceData = {
 };
 type Prices = Record<CoinId, PriceData>;
 
-const COIN_IDS: CoinId[] = ["solana", "zcash", "jupiter-exchange-solana"];
+const COIN_IDS: CoinId[] = ["solana", "zcash"];
 const COIN_LABELS: Record<CoinId, string> = {
   solana: "SOL",
-  zcash: "ZEC",
-  "jupiter-exchange-solana": "JUP"
+  zcash: "ZEC"
 };
 
 function useLivePrices(intervalMs = 30_000) {
@@ -255,6 +254,7 @@ const stackBrands: StackBrand[] = [
   { name: "Pump.fun", logo: "/logos/pumpfun.svg" },
   { name: "Solana", icon: siSolana },
   { name: "Jupiter", logo: "/logos/jupiter.svg" },
+  { name: "Flash Trade", wordmarkOnly: true },
   { name: "Zcash", icon: siZcash }
 ];
 
@@ -496,7 +496,7 @@ function LandingPage({ onEnter, onReadDocs }: { onEnter: () => void; onReadDocs:
           </h1>
           <p className="hero-subtitle">
             ZEC3 turns creator fees into a public, on-chain machine that buys ZEC,
-            manages Jupiter exposure, and routes realized upside back to holders.
+            manages capped Flash exposure, and routes realized upside back to holders.
           </p>
           <div className="hero-actions">
             <button className="hero-cta" onClick={onEnter}>
@@ -521,7 +521,7 @@ function LandingPage({ onEnter, onReadDocs }: { onEnter: () => void; onReadDocs:
         <div className="marquee-track">
           {Array.from({ length: 3 }).map((_, i) => (
             <span key={i} className="marquee-content">
-              CLAIM FEES &nbsp;&bull;&nbsp; BUY ZEC &nbsp;&bull;&nbsp; JUPITER LONG &nbsp;&bull;&nbsp; REALIZE PNL &nbsp;&bull;&nbsp; AIRDROP HOLDERS &nbsp;&bull;&nbsp; PUBLIC LEDGER &nbsp;&bull;&nbsp; RISK-CAPPED &nbsp;&bull;&nbsp; SOLANA NATIVE &nbsp;&bull;&nbsp;&nbsp;
+              CLAIM FEES &nbsp;&bull;&nbsp; BUY ZEC &nbsp;&bull;&nbsp; FLASH LONG &nbsp;&bull;&nbsp; REALIZE PNL &nbsp;&bull;&nbsp; AIRDROP HOLDERS &nbsp;&bull;&nbsp; PUBLIC LEDGER &nbsp;&bull;&nbsp; RISK-CAPPED &nbsp;&bull;&nbsp; SOLANA NATIVE &nbsp;&bull;&nbsp;&nbsp;
             </span>
           ))}
         </div>
@@ -541,7 +541,7 @@ function LandingPage({ onEnter, onReadDocs }: { onEnter: () => void; onReadDocs:
           <Reveal delay={200}>
             <p className="section-body">
               Every time creator fees cross the threshold, the system wakes up:
-              claim SOL, buy ZEC, add capped Jupiter exposure, and reserve realized
+              claim SOL, buy ZEC, add capped Flash exposure, and reserve realized
               profit for holder airdrops.
               The loop is built to be read by the public in real time.
             </p>
@@ -562,7 +562,7 @@ function LandingPage({ onEnter, onReadDocs }: { onEnter: () => void; onReadDocs:
             <Reveal delay={300} className="flow-step">
               <div className="flow-icon"><BarChart3 size={24} /></div>
               <strong>ZEC Long</strong>
-              <span>Jupiter exposure</span>
+              <span>Flash exposure</span>
             </Reveal>
             <div className="flow-connector" />
             <Reveal delay={400} className="flow-step">
@@ -955,7 +955,6 @@ function computePnl(pos: Position, currentPrice: number) {
 function getCoinIdForAsset(asset: string): CoinId | null {
   if (asset === "ZEC") return "zcash";
   if (asset === "SOL") return "solana";
-  if (asset === "JUP") return "jupiter-exchange-solana";
   return null;
 }
 
@@ -1362,7 +1361,7 @@ function App() {
             <div className="risk-grid">
               <Metric label="SOL Price" value={prices?.solana ? fmtUsd(prices.solana.usd) : "—"} suffix={prices?.solana ? fmtPct(prices.solana.usd_24h_change) : ""} />
               <Metric label="ZEC Price" value={prices?.zcash ? fmtUsd(prices.zcash.usd) : "—"} suffix={prices?.zcash ? fmtPct(prices.zcash.usd_24h_change) : ""} />
-              <Metric label="JUP Price" value={prices?.["jupiter-exchange-solana"] ? fmtUsd(prices["jupiter-exchange-solana"].usd) : "—"} suffix={prices?.["jupiter-exchange-solana"] ? fmtPct(prices["jupiter-exchange-solana"].usd_24h_change) : ""} />
+              <Metric label="ZEC Volume" value={prices?.zcash ? fmtCompact(prices.zcash.usd_24h_vol) : "—"} suffix="24h" />
               <Metric label="ZEC Mkt Cap" value={prices?.zcash ? fmtCompact(prices.zcash.usd_market_cap) : "—"} suffix="" />
             </div>
             <div className="risk-grid" style={{ marginTop: 10 }}>

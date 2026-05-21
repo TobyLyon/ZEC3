@@ -18,15 +18,16 @@ export type RunLedger = {
     claimedLamports: string;
     signatureV1?: string;
     signatureV2?: string;
+    unwrapSignature?: string;
   };
   allocations?: {
     solZecLamports: string;
-    jupiterLongLamports: string;
+    flashLongLamports?: string;
     holderAirdropLamports: string;
     retainedLamports: string;
   };
   solZec?: unknown;
-  jupiterLong?: unknown;
+  flashLong?: unknown;
   holderAirdrop?: unknown;
   skippedReason?: string;
 };

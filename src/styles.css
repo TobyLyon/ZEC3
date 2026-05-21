@@ -2493,6 +2493,16 @@ html {
   box-shadow: 0 0 6px rgba(167, 139, 250, 0.5);
 }
 
+.chain-badge.chain-flash::before {
+  background: var(--gold);
+  box-shadow: 0 0 6px rgba(217, 184, 109, 0.5);
+}
+
+.chain-badge.chain-zec3::before {
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+}
+
 .chain-badge.chain-engine::before {
   background: var(--gold);
   box-shadow: 0 0 6px rgba(217, 184, 109, 0.5);

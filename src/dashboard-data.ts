@@ -1,5 +1,6 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadConfig } from "./config.js";
 import type { HolderSnapshot, RunLedger } from "./types.js";
 
@@ -102,14 +103,15 @@ function ledgerRows(runs: RunLedger[]): RuntimeLedgerItem[] {
         chain: "Jupiter"
       });
     }
-    if (run.jupiterLong && typeof run.jupiterLong === "object") {
-      const result = run.jupiterLong as { status?: string; cappedNotionalUsdc?: number };
+    const longPlan = run.flashLong;
+    if (longPlan && typeof longPlan === "object") {
+      const result = longPlan as { status?: string; cappedNotionalUsdc?: number; venue?: string };
       rows.push({
         time,
         action: "ZEC long plan",
         value: result.cappedNotionalUsdc ? `$${result.cappedNotionalUsdc.toFixed(2)}` : "queued",
         hash: result.status ?? "pending",
-        chain: "Jupiter"
+        chain: result.venue?.includes("Flash") ? "Flash" : "ZEC3"
       });
     }
     if (run.holderAirdrop && typeof run.holderAirdrop === "object") {
@@ -128,13 +130,15 @@ function ledgerRows(runs: RunLedger[]): RuntimeLedgerItem[] {
 }
 
 function runtimePositions(runs: RunLedger[]): RuntimePosition[] {
-  const latestWithLong = [...runs].reverse().find((run) => run.jupiterLong);
-  if (!latestWithLong?.jupiterLong || typeof latestWithLong.jupiterLong !== "object") return [];
+  const latestWithLong = [...runs].reverse().find((run) => run.flashLong);
+  const longPlan = latestWithLong?.flashLong;
+  if (!latestWithLong || !longPlan || typeof longPlan !== "object") return [];
 
-  const long = latestWithLong.jupiterLong as {
+  const long = longPlan as {
     cappedNotionalUsdc?: number;
     leverage?: number;
     status?: string;
+    venue?: string;
   };
 
   return [{
@@ -150,14 +154,16 @@ function runtimePositions(runs: RunLedger[]): RuntimePosition[] {
     entryTime: latestWithLong.at,
     stopLoss: null,
     takeProfit: null,
-    source: long.status ?? "planned"
+    source: long.venue ? `${long.venue}: ${long.status ?? "planned"}` : long.status ?? "planned"
   }];
 }
 
 function runtimeStages(latest: RunLedger | undefined, snapshot: HolderSnapshot | null): RuntimeStage[] {
   const claimed = latest?.claim?.claimedLamports;
   const airdrop = latest?.holderAirdrop as { inputLamports?: string; status?: string } | undefined;
-  const long = latest?.jupiterLong as { status?: string; cappedNotionalUsdc?: number } | undefined;
+  const long = latest?.flashLong as
+    | { status?: string; cappedNotionalUsdc?: number; venue?: string }
+    | undefined;
 
   return [
     {
@@ -176,7 +182,7 @@ function runtimeStages(latest: RunLedger | undefined, snapshot: HolderSnapshot |
       label: "ZEC Long",
       status: long ? "active" : "queued",
       amount: long?.cappedNotionalUsdc ? `$${long.cappedNotionalUsdc.toFixed(2)}` : "Planned",
-      subtext: long?.status ?? "Perps execution gated"
+      subtext: long?.venue ? `${long.venue}: ${long.status ?? "planned"}` : "Perps execution gated"
     },
     {
       label: "Profit Reserve",
@@ -193,16 +199,32 @@ function runtimeStages(latest: RunLedger | undefined, snapshot: HolderSnapshot |
   ];
 }
 
-async function main(): Promise<void> {
-  const config = loadConfig(["node", "dashboard-data", "--dry-run"]);
-  const runs = await readLedger(config.LEDGER_PATH);
-  const snapshot = await readSnapshot(config.HOLDER_SNAPSHOT_PATH);
+function totalAirdropReserveLamports(runs: RunLedger[]): string {
+  let total = 0n;
+  for (const run of runs) {
+    if (run.holderAirdrop && typeof run.holderAirdrop === "object") {
+      const lamports = (run.holderAirdrop as { inputLamports?: string }).inputLamports;
+      if (lamports) total += BigInt(lamports);
+    }
+  }
+  return total.toString();
+}
+
+export async function syncEngineData(options: {
+  ledgerPath: string;
+  snapshotPath: string;
+  outputPath: string;
+  projectTokenMint: string;
+  dryRun: boolean;
+}): Promise<{ ledgerRows: number; positions: number; holderSnapshot: boolean }> {
+  const runs = await readLedger(options.ledgerPath);
+  const snapshot = await readSnapshot(options.snapshotPath);
   const latest = runs.at(-1);
 
   const payload = {
     generatedAt: new Date().toISOString(),
-    mode: config.DRY_RUN ? "dry-run" : "live",
-    projectTokenMint: config.PROJECT_TOKEN_MINT || "TBA",
+    mode: options.dryRun ? "dry-run" : "live",
+    projectTokenMint: options.projectTokenMint || "TBA",
     ledger: ledgerRows(runs),
     positions: runtimePositions(runs),
     stages: runtimeStages(latest, snapshot),
@@ -214,24 +236,38 @@ async function main(): Promise<void> {
           totalBalanceUi: snapshot.totalBalanceUi
         }
       : null,
-    airdropReserveLamports:
-      latest?.holderAirdrop && typeof latest.holderAirdrop === "object"
-        ? (latest.holderAirdrop as { inputLamports?: string }).inputLamports ?? "0"
-        : "0"
+    airdropReserveLamports: totalAirdropReserveLamports(runs)
   };
 
-  await mkdir(dirname(config.PUBLIC_ENGINE_DATA_PATH), { recursive: true });
-  await writeFile(config.PUBLIC_ENGINE_DATA_PATH, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
-  console.log(JSON.stringify({
-    ok: true,
-    path: config.PUBLIC_ENGINE_DATA_PATH,
+  await mkdir(dirname(options.outputPath), { recursive: true });
+  await writeFile(options.outputPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+
+  return {
     ledgerRows: payload.ledger.length,
     positions: payload.positions.length,
     holderSnapshot: Boolean(payload.holderSnapshot)
-  }, null, 2));
+  };
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+async function main(): Promise<void> {
+  const config = loadConfig(["node", "dashboard-data", "--dry-run"]);
+  const stats = await syncEngineData({
+    ledgerPath: config.LEDGER_PATH,
+    snapshotPath: config.HOLDER_SNAPSHOT_PATH,
+    outputPath: config.PUBLIC_ENGINE_DATA_PATH,
+    projectTokenMint: config.PROJECT_TOKEN_MINT,
+    dryRun: config.DRY_RUN
+  });
+  console.log(JSON.stringify({ ok: true, path: config.PUBLIC_ENGINE_DATA_PATH, ...stats }, null, 2));
+}
+
+function isDirectRun(): boolean {
+  return Boolean(process.argv[1]) && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+}
+
+if (isDirectRun()) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
