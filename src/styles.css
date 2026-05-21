@@ -435,6 +435,14 @@ p {
   font-variant-numeric: tabular-nums;
 }
 
+.summary-item small {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .summary-item.up strong {
   color: #4ade80;
 }
@@ -1954,97 +1962,121 @@ html {
 }
 
 .docs-flywheel {
-  position: relative;
   display: grid;
-  min-height: 520px;
-  place-items: center;
+  gap: 14px;
   margin: 12px 0 26px;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(244, 183, 40, 0.09), transparent 34%),
-    repeating-conic-gradient(from 0deg, rgba(244, 183, 40, 0.18) 0deg 1deg, transparent 1deg 36deg);
-  border-radius: 12px;
-  overflow: hidden;
 }
 
-.docs-flywheel::before {
-  content: "";
-  position: absolute;
-  width: min(62vw, 480px);
-  aspect-ratio: 1;
-  border: 1px solid rgba(244, 183, 40, 0.24);
-  border-radius: 50%;
-  box-shadow:
-    0 0 80px rgba(244, 183, 40, 0.08),
-    inset 0 0 80px rgba(244, 183, 40, 0.06);
+.docs-flywheel-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 18px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.docs-flywheel-node {
-  --angle: calc((var(--node) * 72deg) - 90deg);
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  display: grid;
-  width: 150px;
-  min-height: 118px;
-  place-items: center;
-  gap: 6px;
-  padding: 14px;
-  transform:
-    translate(-50%, -50%)
-    rotate(var(--angle))
-    translateY(-210px)
-    rotate(calc(var(--angle) * -1));
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 12px;
-  background: rgba(10, 10, 12, 0.68);
-  backdrop-filter: blur(16px);
+.docs-flywheel-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   text-align: center;
+  flex: 1;
+  min-width: 0;
 }
 
-.docs-flywheel-icon {
+.docs-flywheel-step .icon {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   place-items: center;
-  border-radius: 50%;
-  color: rgba(244, 183, 40, 0.95);
+  border-radius: 10px;
+  color: #f4b728;
   background: rgba(244, 183, 40, 0.1);
 }
 
-.docs-flywheel-node strong,
-.docs-flywheel-core strong {
+.docs-flywheel-step strong {
   color: white;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 750;
 }
 
-.docs-flywheel-node span,
-.docs-flywheel-core span {
-  color: rgba(255, 255, 255, 0.6);
+.docs-flywheel-step span {
+  color: rgba(255, 255, 255, 0.55);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
+}
+
+.docs-flywheel-arrow {
+  color: rgba(244, 183, 40, 0.35);
+  flex: 0 0 auto;
 }
 
 .docs-flywheel-core {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  gap: 6px;
-  width: 172px;
-  aspect-ratio: 1;
-  border: 1px solid rgba(244, 183, 40, 0.28);
-  border-radius: 50%;
-  background: rgba(10, 10, 12, 0.78);
-  text-align: center;
-  box-shadow: 0 0 80px rgba(244, 183, 40, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 18px 24px;
+  border: 1px solid rgba(244, 183, 40, 0.2);
+  border-radius: 12px;
+  background: rgba(244, 183, 40, 0.06);
 }
 
 .docs-flywheel-core img {
-  width: 68px;
-  height: 68px;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
+}
+
+.docs-flywheel-core strong {
+  color: white;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.docs-flywheel-core span {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+}
+
+.docs-pillars {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.docs-pillars > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.docs-pillars > div svg {
+  color: #f4b728;
+}
+
+.docs-pillars > div strong {
+  color: white;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.docs-pillars > div span {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .docs-grid,
@@ -2062,53 +2094,6 @@ html {
 
 .docs-grid svg {
   color: rgba(244, 183, 40, 0.88);
-}
-
-.docs-table {
-  display: grid;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-}
-
-.docs-table [role="row"] {
-  display: grid;
-  grid-template-columns: minmax(180px, 0.9fr) minmax(260px, 1.6fr) minmax(120px, 0.6fr);
-  gap: 16px;
-  align-items: center;
-  padding: 15px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-}
-
-.docs-table [role="row"]:first-child {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.docs-table [role="row"]:last-child {
-  border-bottom: 0;
-}
-
-.docs-table code {
-  color: rgba(244, 183, 40, 0.92);
-  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
-  font-size: 12px;
-}
-
-.docs-table span {
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.docs-table em {
-  justify-self: start;
-  padding: 6px 9px;
-  border-radius: 999px;
-  background: rgba(244, 183, 40, 0.1);
-  color: rgba(244, 183, 40, 0.9);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 800;
 }
 
 .docs-timeline,
@@ -3360,36 +3345,28 @@ html {
     flex-flow: row wrap;
   }
 
-  .docs-flywheel {
-    min-height: 620px;
+  .docs-flywheel-strip {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 14px;
   }
 
-  .docs-flywheel::before {
-    width: min(84vw, 360px);
+  .docs-flywheel-step {
+    min-width: 90px;
+    flex: 0 0 auto;
   }
 
-  .docs-flywheel-node {
-    width: 126px;
-    min-height: 104px;
-    transform:
-      translate(-50%, -50%)
-      rotate(var(--angle))
-      translateY(-175px)
-      rotate(calc(var(--angle) * -1));
+  .docs-flywheel-arrow {
+    transform: rotate(90deg);
   }
 
-  .docs-flywheel-core {
-    width: 142px;
+  .docs-pillars {
+    grid-template-columns: 1fr;
   }
 
   .docs-grid,
   .docs-risk-grid {
     grid-template-columns: 1fr;
-  }
-
-  .docs-table [role="row"] {
-    grid-template-columns: 1fr;
-    gap: 8px;
   }
 
   .landing-nav {

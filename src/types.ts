@@ -29,3 +29,46 @@ export type RunLedger = {
   holderAirdrop?: unknown;
   skippedReason?: string;
 };
+
+export type HolderSnapshotSource = "birdeye" | "manual";
+
+export type HolderSnapshotHolder = {
+  owner: string;
+  balanceRaw?: string;
+  balanceUi: number;
+  supplyPercent?: number;
+  sourceRank: number;
+};
+
+export type HolderSnapshot = {
+  version: 1;
+  tokenMint: string;
+  source: HolderSnapshotSource;
+  createdAt: string;
+  minBalanceUi: number;
+  excludedWallets: string[];
+  totalFetched: number;
+  totalEligible: number;
+  totalBalanceUi: number;
+  holders: HolderSnapshotHolder[];
+};
+
+export type AirdropDryRunRecipient = {
+  owner: string;
+  balanceUi: number;
+  lamports: string;
+  sol: number;
+  sharePct: number;
+};
+
+export type AirdropDryRunPlan = {
+  version: 1;
+  createdAt: string;
+  tokenMint: string;
+  snapshotCreatedAt: string;
+  inputLamports: string;
+  totalAssignedLamports: string;
+  remainderLamports: string;
+  recipientCount: number;
+  recipients: AirdropDryRunRecipient[];
+};

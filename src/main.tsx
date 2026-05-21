@@ -1,8 +1,9 @@
-import { StrictMode, useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { Fragment, StrictMode, useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { siSolana, siZcash, type SimpleIcon } from "simple-icons";
 import {
   Activity,
+  ArrowRight,
   ArrowUpRight,
   ArrowDownRight,
   BadgeDollarSign,
@@ -91,6 +92,35 @@ function useLivePrices(intervalMs = 30_000) {
   return { prices, lastUpdate, error, loading };
 }
 
+function useEngineData(intervalMs = 20_000) {
+  const [data, setData] = useState<RuntimeEngineData | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchEngineData() {
+      try {
+        const response = await fetch(`/runtime/engine.json?t=${Date.now()}`, { cache: "no-store" });
+        if (response.status === 404) return;
+        if (!response.ok) throw new Error(`Engine data ${response.status}`);
+        const nextData = (await response.json()) as RuntimeEngineData;
+        if (!cancelled) setData(nextData);
+      } catch {
+        if (!cancelled) setData(null);
+      }
+    }
+
+    fetchEngineData();
+    const timer = setInterval(fetchEngineData, intervalMs);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [intervalMs]);
+
+  return data;
+}
+
 /* ── Position / Trade types ── */
 
 type PositionSide = "long" | "short";
@@ -130,6 +160,24 @@ type LedgerItem = {
   chain: string;
 };
 
+type RuntimeStage = Omit<Stage, "icon">;
+
+type RuntimeEngineData = {
+  generatedAt: string;
+  mode: "dry-run" | "live";
+  projectTokenMint: string;
+  ledger: LedgerItem[];
+  positions: Position[];
+  stages: RuntimeStage[];
+  holderSnapshot: {
+    source: string;
+    createdAt: string;
+    totalEligible: number;
+    totalBalanceUi: number;
+  } | null;
+  airdropReserveLamports: string;
+};
+
 type AppView = "landing" | "docs" | "dashboard";
 
 const zec3Assets = {
@@ -138,26 +186,26 @@ const zec3Assets = {
   tokenImage: "/assets/zec3/zec3-token.png"
 };
 
-const stages: Stage[] = [
+const defaultStages: Stage[] = [
   {
     label: "Claim Fees",
     status: "ready",
-    amount: "Not run",
-    subtext: "Needs project token mint",
+    amount: "Awaiting launch",
+    subtext: "Creator revenue source",
     icon: BadgeDollarSign
   },
   {
     label: "Buy ZEC",
     status: "queued",
     amount: "Waiting",
-    subtext: "Runs after real fee claim",
+    subtext: "Starts after fee capture",
     icon: Zap
   },
   {
     label: "ZEC Long",
     status: "queued",
-    amount: "Adapter needed",
-    subtext: "Perps execution not wired",
+    amount: "Queued",
+    subtext: "Capped ZEC exposure",
     icon: BarChart3
   },
   {
@@ -170,13 +218,22 @@ const stages: Stage[] = [
   {
     label: "Airdrop",
     status: "ready",
-    amount: "Not configured",
-    subtext: "Snapshot adapter needed",
+    amount: "Pending",
+    subtext: "Holder rewards",
     icon: Wallet
   }
 ];
 
-const enginePositions: Position[] = [];
+function mergeRuntimeStages(runtimeStages: RuntimeStage[] | undefined): Stage[] {
+  if (!runtimeStages?.length) return defaultStages;
+  const byLabel = new Map(runtimeStages.map((stage) => [stage.label, stage]));
+  return defaultStages.map((stage) => {
+    const runtimeStage = byLabel.get(stage.label);
+    return runtimeStage ? { ...stage, ...runtimeStage } : stage;
+  });
+}
+
+const defaultEnginePositions: Position[] = [];
 
 const allocations = [
   { label: "ZEC Spot", value: 30, color: "rgba(255,255,255,0.85)" },
@@ -185,7 +242,7 @@ const allocations = [
   { label: "Retained SOL", value: 10, color: "rgba(255,255,255,0.3)" }
 ];
 
-const initialLedger: LedgerItem[] = [];
+const defaultLedger: LedgerItem[] = [];
 
 type StackBrand = {
   name: string;
@@ -321,7 +378,7 @@ function BrandMarquee() {
 }
 
 const ZEC3_CONTRACT_ADDRESS = import.meta.env.VITE_ZEC3_CONTRACT_ADDRESS || "TBA";
-const ENGINE_MODE = import.meta.env.VITE_ENGINE_MODE || "Prelaunch";
+const ENGINE_MODE = import.meta.env.VITE_ENGINE_MODE || "Awaiting Launch";
 const ZEC3_X_URL = "https://x.com/ZEC3solana";
 
 function EmptyState({ title, detail }: { title: string; detail: string }) {
@@ -625,7 +682,7 @@ function LandingPage({ onEnter, onReadDocs }: { onEnter: () => void; onReadDocs:
           </Reveal>
           <Reveal delay={150}>
             <p className="section-body center">
-              Monitor real-time state. Run dry checks. Watch every transaction hit the chain.
+              Monitor public treasury activity and watch every transaction hit the chain.
             </p>
           </Reveal>
           <Reveal delay={300}>
@@ -647,38 +704,47 @@ function LandingPage({ onEnter, onReadDocs }: { onEnter: () => void; onReadDocs:
 
 const docSections = [
   { id: "overview", label: "Overview" },
-  { id: "flywheel", label: "Flywheel Loop" },
-  { id: "launch", label: "Launch Inputs" },
-  { id: "holders", label: "Holder Airdrops" },
-  { id: "risk-controls", label: "Risk Controls" },
-  { id: "operations", label: "Operations" }
+  { id: "launch", label: "Dashboard" },
+  { id: "flywheel", label: "Treasury Cycle" },
+  { id: "holders", label: "Rewards" },
+  { id: "risk-controls", label: "Risk" },
+  { id: "operations", label: "Verification" }
 ];
 
 function FlywheelDiagram() {
   const steps = [
-    { label: "Creator Fees", detail: "SOL fee vault", icon: BadgeDollarSign },
-    { label: "Buy ZEC", detail: "Jupiter route", icon: Zap },
-    { label: "ZEC Exposure", detail: "1x isolated cap", icon: BarChart3 },
-    { label: "Realize PnL", detail: "reserve gains", icon: Activity },
-    { label: "Airdrop", detail: "holders list", icon: Wallet }
+    { label: "Fee Flow", detail: "public revenue", icon: BadgeDollarSign },
+    { label: "ZEC Exposure", detail: "treasury focus", icon: Zap },
+    { label: "Risk Controls", detail: "defined limits", icon: ShieldCheck },
+    { label: "Realized Results", detail: "public activity", icon: Activity },
+    { label: "Holder Rewards", detail: "shared upside", icon: Wallet }
   ];
 
   return (
-    <div className="docs-flywheel" aria-label="ZEC3 fee engine flywheel">
-      {steps.map((step, index) => {
-        const Icon = step.icon;
-        return (
-          <div className="docs-flywheel-node" key={step.label} style={{ "--node": index } as React.CSSProperties}>
-            <div className="docs-flywheel-icon"><Icon size={22} /></div>
-            <strong>{step.label}</strong>
-            <span>{step.detail}</span>
-          </div>
-        );
-      })}
+    <div className="docs-flywheel" aria-label="ZEC3 treasury cycle">
+      <div className="docs-flywheel-strip">
+        {steps.map((step, index) => {
+          const Icon = step.icon;
+          return (
+            <Fragment key={step.label}>
+              <div className="docs-flywheel-step">
+                <div className="icon"><Icon size={20} /></div>
+                <strong>{step.label}</strong>
+                <span>{step.detail}</span>
+              </div>
+              {index < steps.length - 1 && (
+                <ArrowRight size={18} className="docs-flywheel-arrow" />
+              )}
+            </Fragment>
+          );
+        })}
+      </div>
       <div className="docs-flywheel-core">
         <img src={zec3Assets.tokenImage} alt="" aria-hidden="true" />
-        <strong>ZEC3</strong>
-        <span>Public treasury cycle</span>
+        <div>
+          <strong>ZEC3</strong>
+          <span>Public treasury interface</span>
+        </div>
       </div>
     </div>
   );
@@ -702,7 +768,7 @@ function DocsPage({ onEnter, onBack }: { onEnter: () => void; onBack: () => void
         <button className="docs-brand" onClick={onBack} aria-label="Back to landing">
           <img src={zec3Assets.navLogo} alt="ZEC3" />
         </button>
-        <nav aria-label="Flywheel documentation contents">
+        <nav aria-label="ZEC3 documentation contents">
           {docSections.map((section) => (
             <a href={`#${section.id}`} onClick={(event) => jumpToSection(event, section.id)} key={section.id}>{section.label}</a>
           ))}
@@ -716,13 +782,13 @@ function DocsPage({ onEnter, onBack }: { onEnter: () => void; onBack: () => void
       <section className="docs-hero" id="overview">
         <div className="docs-eyebrow">
           <BookOpen size={16} />
-          <span>Flywheel Documentation</span>
+          <span>Documentation</span>
         </div>
-        <h1>ZEC3 turns fee flow into a visible treasury engine.</h1>
+        <h1>ZEC3 product guide.</h1>
         <p>
-          This page explains what the site shows, what the runner does, and what must be
-          configured before the public dashboard can display live transactions, positions,
-          and holder distributions.
+          ZEC3 is a public site for following a Solana-based treasury experience centered
+          on ZEC exposure, visible activity, and holder rewards. Use this guide to understand
+          what each surface shows and how to verify the information presented on the site.
         </p>
         <div className="docs-hero-actions">
           <button className="hero-cta" onClick={onEnter}>
@@ -731,7 +797,7 @@ function DocsPage({ onEnter, onBack }: { onEnter: () => void; onBack: () => void
           </button>
           <a className="hero-secondary" href="#launch" onClick={(event) => jumpToSection(event, "launch")}>
             <Layers3 size={16} />
-            <span>Launch Checklist</span>
+            <span>Read the Guide</span>
           </a>
         </div>
       </section>
@@ -745,67 +811,57 @@ function DocsPage({ onEnter, onBack }: { onEnter: () => void; onBack: () => void
         </aside>
 
         <div className="docs-content">
-          <section className="docs-section glass" id="flywheel">
+          <section className="docs-section glass" id="launch">
             <div className="docs-section-heading">
               <span>01</span>
               <div>
-                <h2>The Flywheel Loop</h2>
-                <p>Each engine cycle is intentionally simple enough to audit from the outside.</p>
+                <h2>Using the Dashboard</h2>
+                <p>The dashboard is the main public interface for ZEC3 activity, market context, and reward visibility.</p>
               </div>
             </div>
-            <FlywheelDiagram />
             <div className="docs-grid">
               <article>
-                <BadgeDollarSign size={20} />
-                <h3>Claim</h3>
-                <p>Creator fees are collected from the configured fee source when a run threshold is met.</p>
+                <Gauge size={20} />
+                <h3>Engine Status</h3>
+                <p>See the current treasury state, active cycle status, and high-level movement across the system.</p>
               </article>
               <article>
-                <Zap size={20} />
-                <h3>Route</h3>
-                <p>The runner uses the configured Solana RPC and Jupiter route caps before any swap executes.</p>
+                <BarChart3 size={20} />
+                <h3>Market Context</h3>
+                <p>Track SOL, ZEC, and related market data beside the treasury activity it helps explain.</p>
               </article>
               <article>
-                <Wallet size={20} />
-                <h3>Distribute</h3>
-                <p>Realized upside is reserved for holders once the token mint and holder list are available.</p>
+                <Landmark size={20} />
+                <h3>Activity Log</h3>
+                <p>Review public actions, signatures, and reward events from one structured interface.</p>
               </article>
             </div>
           </section>
 
-          <section className="docs-section glass" id="launch">
+          <section className="docs-section glass" id="flywheel">
             <div className="docs-section-heading">
               <span>02</span>
               <div>
-                <h2>Launch Inputs</h2>
-                <p>The interface is ready to display live state once these values are plugged in.</p>
+                <h2>Treasury Cycle</h2>
+                <p>ZEC3 presents the treasury cycle as a clear public sequence without requiring users to parse raw transaction data.</p>
               </div>
             </div>
-            <div className="docs-table" role="table" aria-label="Required launch inputs">
-              <div role="row">
-                <strong>Variable</strong>
-                <strong>Purpose</strong>
-                <strong>Status</strong>
+            <FlywheelDiagram />
+            <div className="docs-pillars">
+              <div>
+                <BadgeDollarSign size={20} />
+                <strong>Revenue</strong>
+                <span>Public fee flow is represented as the starting point for the treasury experience.</span>
               </div>
-              <div role="row">
-                <code>PROJECT_TOKEN_MINT</code>
-                <span>Pump.fun token mint used by the backend runner and holder reconciliation.</span>
-                <em>Required</em>
+              <div>
+                <Zap size={20} />
+                <strong>Exposure</strong>
+                <span>ZEC-focused treasury activity is summarized in plain language with visible limits.</span>
               </div>
-              <div role="row">
-                <code>VITE_ZEC3_CONTRACT_ADDRESS</code>
-                <span>Public token CA displayed in the landing page and footer copy controls.</span>
-                <em>Required at launch</em>
-              </div>
-              <div role="row">
-                <code>SOLANA_RPC_URL</code>
-                <span>RPC endpoint used by the runner to read balances, submit transactions, and verify signatures.</span>
-                <em>Required</em>
-              </div>
-              <div role="row">
-                <code>DRY_RUN</code>
-                <span>Safety switch. Keep enabled until wallet, caps, routes, and holder output are verified.</span>
-                <em>Prelaunch safe</em>
+              <div>
+                <Wallet size={20} />
+                <strong>Rewards</strong>
+                <span>Holder-facing outcomes are surfaced through reward events and public history.</span>
               </div>
             </div>
           </section>
@@ -814,15 +870,15 @@ function DocsPage({ onEnter, onBack }: { onEnter: () => void; onBack: () => void
             <div className="docs-section-heading">
               <span>03</span>
               <div>
-                <h2>Holder List and Airdrops</h2>
-                <p>Distributions should only activate after the token mint and holder snapshot source are finalized.</p>
+                <h2>Rewards for Holders</h2>
+                <p>The rewards section explains what holders can expect to see when distributions are published.</p>
               </div>
             </div>
             <div className="docs-timeline">
-              <div><strong>1</strong><span>Acquire holder balances from the canonical mint.</span></div>
-              <div><strong>2</strong><span>Filter ineligible wallets and normalize balances.</span></div>
-              <div><strong>3</strong><span>Generate a dry-run distribution ledger before any live send.</span></div>
-              <div><strong>4</strong><span>Publish transaction signatures back into the dashboard ledger.</span></div>
+              <div><strong>1</strong><span>Holder rewards are shown as public reward events when they are distributed.</span></div>
+              <div><strong>2</strong><span>Distribution details are presented in a format that is easy to scan and verify.</span></div>
+              <div><strong>3</strong><span>Reward history remains accessible from the dashboard activity view.</span></div>
+              <div><strong>4</strong><span>On-chain signatures provide the source of truth for completed payments.</span></div>
             </div>
           </section>
 
@@ -831,14 +887,14 @@ function DocsPage({ onEnter, onBack }: { onEnter: () => void; onBack: () => void
               <span>04</span>
               <div>
                 <h2>Risk Controls</h2>
-                <p>The dashboard exposes hard caps that should match the runner configuration.</p>
+                <p>The site highlights the core limits that define how treasury activity is presented.</p>
               </div>
             </div>
             <div className="docs-risk-grid">
               <Metric label="Max Leverage" value="1x" suffix="isolated" />
-              <Metric label="Max Order" value="$250" suffix="IOC" />
+              <Metric label="Max Order" value="$250" suffix="per swap" />
               <Metric label="Stop Loss" value="-15%" suffix="manual breaker" />
-              <Metric label="Slippage Cap" value="10%" suffix="Jupiter" />
+              <Metric label="Slippage Cap" value="10%" suffix="route cap" />
             </div>
           </section>
 
@@ -846,17 +902,17 @@ function DocsPage({ onEnter, onBack }: { onEnter: () => void; onBack: () => void
             <div className="docs-section-heading">
               <span>05</span>
               <div>
-                <h2>Operational Readiness</h2>
-                <p>What the smoke tests should prove before flipping from prelaunch to live.</p>
+                <h2>Verification</h2>
+                <p>ZEC3 is designed so visitors can connect the site interface back to public Solana activity.</p>
               </div>
             </div>
             <div className="docs-checklist">
               {[
-                "Landing page loads with a clear prelaunch CA fallback.",
-                "Flywheel docs route opens from the hero button and table of contents anchors work.",
-                "Dashboard opens without live positions or ledger data and shows empty states clearly.",
-                "Build passes without token env vars, then displays configured values after env injection.",
-                "Runner remains dry-run until wallet, token mint, RPC, route caps, and holder snapshot are verified."
+                "Copy the contract address directly from the site before checking external tools.",
+                "Use dashboard activity to identify completed treasury and reward events.",
+                "Compare signatures against a Solana explorer when deeper verification is needed.",
+                "Read market panels beside treasury activity for quick context.",
+                "Use the documentation page as the stable reference for how each site surface should be read."
               ].map((item) => (
                 <div key={item}>
                   <Check size={16} />
@@ -1007,7 +1063,17 @@ function PositionRow({ pos, currentPrice }: { pos: Position; currentPrice: numbe
   );
 }
 
-function PortfolioSummary({ positions, prices }: { positions: Position[]; prices: Prices | null }) {
+function PortfolioSummary({
+  positions,
+  prices,
+  airdropReserveLamports,
+  holderCount
+}: {
+  positions: Position[];
+  prices: Prices | null;
+  airdropReserveLamports?: string;
+  holderCount?: number;
+}) {
   if (!prices) return null;
 
   let totalValue = 0;
@@ -1028,6 +1094,8 @@ function PortfolioSummary({ positions, prices }: { positions: Position[]; prices
 
   const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
   const up = totalPnl >= 0;
+  const reserveSol = airdropReserveLamports ? Number(BigInt(airdropReserveLamports)) / 1_000_000_000 : 0;
+  const reserveUsd = reserveSol * prices.solana.usd;
 
   return (
     <div className="portfolio-summary">
@@ -1048,7 +1116,8 @@ function PortfolioSummary({ positions, prices }: { positions: Position[]; prices
       </div>
       <div className="summary-item">
         <span>Airdrop Reserve</span>
-        <strong>$0</strong>
+        <strong>{reserveSol > 0 ? fmtUsd(reserveUsd) : "$0"}</strong>
+        {holderCount !== undefined && <small>{holderCount} holders</small>}
       </div>
     </div>
   );
@@ -1086,7 +1155,10 @@ function App() {
   const [view, setView] = useState<AppView>(() => getViewFromHash());
   const [routeHash, setRouteHash] = useState(() => window.location.hash);
   const [selected, setSelected] = useState("Overview");
-  const ledger = initialLedger;
+  const engineData = useEngineData();
+  const ledger = engineData?.ledger ?? defaultLedger;
+  const positions = engineData?.positions ?? defaultEnginePositions;
+  const runtimeStages = mergeRuntimeStages(engineData?.stages);
   const { prices, lastUpdate, loading } = useLivePrices(30_000);
 
   const health = ledger.length > 0 ? 84 : 0;
@@ -1181,23 +1253,28 @@ function App() {
             </p>
           </div>
           <div className="actions">
-            <button className="trace-button" disabled title="Run dry checks from the secured CLI runner">
+            <button className="trace-button" disabled title="Public engine status">
               <Play size={16} />
-              <span>CLI Dry Run</span>
+              <span>Engine Status</span>
             </button>
             <button className="ghost-button" onClick={() => setSelected("Ledger")}>
               <Boxes size={16} />
               <span>View Ledger</span>
             </button>
-            <button className="ghost-button solid" disabled title="Live wallet signing stays in the secured runner">
+            <button className="ghost-button solid" disabled title="Public treasury view">
               <Wallet size={16} />
-              <span>Local Signer</span>
+              <span>Treasury</span>
             </button>
           </div>
         </header>
 
         {/* Portfolio Summary Bar */}
-        <PortfolioSummary positions={enginePositions} prices={prices} />
+        <PortfolioSummary
+          positions={positions}
+          prices={prices}
+          airdropReserveLamports={engineData?.airdropReserveLamports}
+          holderCount={engineData?.holderSnapshot?.totalEligible}
+        />
 
         <section className="terminal-grid">
           {/* POSITIONS TABLE — Primary focus */}
@@ -1205,11 +1282,11 @@ function App() {
             <div className="panel-heading compact">
               <div>
                 <h2>Open Positions</h2>
-                <p>No live positions have been opened by the runner.</p>
+                <p>{positions.length > 0 ? "Latest public position state" : "No public positions are open yet."}</p>
               </div>
               <Activity size={18} />
             </div>
-            {enginePositions.length > 0 ? (
+            {positions.length > 0 ? (
               <>
                 <div className="positions-header">
                   <span>Asset</span>
@@ -1225,7 +1302,7 @@ function App() {
                   <span>Status</span>
                 </div>
                 <div className="positions-table">
-                  {enginePositions.map((pos) => {
+                  {positions.map((pos) => {
                     const coinId = getCoinIdForAsset(pos.asset);
                     const cp = coinId && prices?.[coinId] ? prices[coinId].usd : 0;
                     return <PositionRow key={pos.id} pos={pos} currentPrice={cp} />;
@@ -1235,7 +1312,7 @@ function App() {
             ) : (
               <EmptyState
                 title="No live positions"
-                detail="The Jupiter perps adapter is not wired yet, so no position data is displayed."
+                detail="Treasury exposure will appear here once a public position is opened."
               />
             )}
           </section>
@@ -1253,7 +1330,7 @@ function App() {
             </div>
 
             <div className="process-track" aria-label="Fee engine process">
-              {stages.map((stage, index) => (
+              {runtimeStages.map((stage, index) => (
                 <ProcessStage key={stage.label} stage={stage} index={index} />
               ))}
             </div>
@@ -1320,7 +1397,7 @@ function App() {
             ) : (
               <EmptyState
                 title="No ledger entries"
-                detail="Run the secured CLI with a configured token mint to create the first real ledger row."
+                detail="Public signatures will appear here after the first treasury action."
               />
             )}
           </section>

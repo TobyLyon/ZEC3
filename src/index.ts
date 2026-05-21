@@ -21,7 +21,7 @@ async function runOnce(): Promise<void> {
     at: new Date().toISOString(),
     dryRun: config.DRY_RUN,
     creator: creator.publicKey.toBase58(),
-    projectTokenMint: config.PROJECT_TOKEN_MINT
+    projectTokenMint: config.PROJECT_TOKEN_MINT || "TBA"
   };
 
   const before = await pump.getCreatorFeeLamports();

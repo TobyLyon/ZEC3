@@ -10,7 +10,12 @@
     "preview": "vite preview --host 127.0.0.1",
     "dry-run": "tsx src/index.ts --dry-run",
     "once": "tsx src/index.ts --once",
-    "daemon": "tsx src/index.ts"
+    "daemon": "tsx src/index.ts",
+    "holders:snapshot": "tsx src/holders-cli.ts snapshot",
+    "holders:dry-run": "tsx src/holders-cli.ts dry-run",
+    "dashboard:sync": "tsx src/dashboard-data.ts",
+    "readiness": "tsx src/readiness.ts",
+    "smoke": "npm run check && npm run build && npm run readiness"
   },
   "dependencies": {
     "@pump-fun/pump-sdk": "^1.18.5",
