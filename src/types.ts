@@ -33,7 +33,7 @@ export type RunLedger = {
   skippedReason?: string;
 };
 
-export type HolderSnapshotSource = "birdeye" | "manual";
+export type HolderSnapshotSource = "birdeye" | "manual" | "solana-rpc";
 
 export type HolderSnapshotHolder = {
   owner: string;

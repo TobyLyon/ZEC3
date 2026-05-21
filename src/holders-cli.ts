@@ -1,7 +1,9 @@
 import { loadConfig, parseWalletList } from "./config.js";
+import { createConnection } from "./solana.js";
 import {
   buildAirdropDryRunPlan,
   fetchBirdeyeHolderSnapshot,
+  fetchRpcHolderSnapshot,
   readHolderSnapshot,
   writeAirdropDryRunPlan,
   writeHolderSnapshot
@@ -15,18 +17,32 @@ function readArg(name: string): string | undefined {
 
 async function snapshot(): Promise<void> {
   const config = loadConfig(["node", "holders-cli", "--dry-run"]);
-  if (config.HOLDER_SNAPSHOT_PROVIDER !== "birdeye") {
-    throw new Error("Only HOLDER_SNAPSHOT_PROVIDER=birdeye is currently implemented.");
+  const topHoldersArg = readArg("top");
+  const baseOptions = {
+    tokenMint: config.PROJECT_TOKEN_MINT,
+    minBalanceUi: config.HOLDER_SNAPSHOT_MIN_BALANCE,
+    excludedWallets: parseWalletList(config.HOLDER_EXCLUDED_WALLETS)
+  };
+  let holderSnapshot;
+
+  if (config.HOLDER_SNAPSHOT_PROVIDER === "birdeye") {
+    try {
+      holderSnapshot = await fetchBirdeyeHolderSnapshot({
+        ...baseOptions,
+        apiKey: config.BIRDEYE_API_KEY ?? "",
+        topHolders: topHoldersArg ? Number(topHoldersArg) : undefined
+      });
+    } catch (error) {
+      console.warn(`Birdeye snapshot unavailable, falling back to Solana RPC: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
-  const topHoldersArg = readArg("top");
-  const holderSnapshot = await fetchBirdeyeHolderSnapshot({
-    tokenMint: config.PROJECT_TOKEN_MINT,
-    apiKey: config.BIRDEYE_API_KEY ?? "",
-    minBalanceUi: config.HOLDER_SNAPSHOT_MIN_BALANCE,
-    excludedWallets: parseWalletList(config.HOLDER_EXCLUDED_WALLETS),
-    topHolders: topHoldersArg ? Number(topHoldersArg) : undefined
-  });
+  if (!holderSnapshot) {
+    holderSnapshot = await fetchRpcHolderSnapshot({
+      ...baseOptions,
+      connection: createConnection(config.SOLANA_RPC_URL, config.COMMITMENT)
+    });
+  }
 
   await writeHolderSnapshot(config.HOLDER_SNAPSHOT_PATH, holderSnapshot);
   console.log(JSON.stringify({

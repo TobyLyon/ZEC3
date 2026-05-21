@@ -178,12 +178,21 @@ function runtimePositions(runs: RunLedger[]): RuntimePosition[] {
   }];
 }
 
-function runtimeStages(latest: RunLedger | undefined, snapshot: HolderSnapshot | null): RuntimeStage[] {
+function runtimeStages(latest: RunLedger | undefined, snapshot: HolderSnapshot | null, positions: RuntimePosition[]): RuntimeStage[] {
   const claimed = latest?.claim?.claimedLamports;
   const airdrop = latest?.holderAirdrop as { inputLamports?: string; status?: string } | undefined;
   const long = latest?.flashLong as
     | { status?: string; cappedNotionalUsdc?: number; venue?: string }
     | undefined;
+  const latestPosition = positions.at(0);
+  const longAmount = long?.cappedNotionalUsdc
+    ? `$${long.cappedNotionalUsdc.toFixed(2)}`
+    : latestPosition
+      ? `$${latestPosition.notional.toFixed(2)}`
+      : "Planned";
+  const longSubtext = long?.venue
+    ? `${long.venue}: ${long.status ?? "planned"}`
+    : latestPosition?.source ?? "Perps execution gated";
 
   return [
     {
@@ -200,9 +209,9 @@ function runtimeStages(latest: RunLedger | undefined, snapshot: HolderSnapshot |
     },
     {
       label: "ZEC Long",
-      status: long ? "active" : "queued",
-      amount: long?.cappedNotionalUsdc ? `$${long.cappedNotionalUsdc.toFixed(2)}` : "Planned",
-      subtext: long?.venue ? `${long.venue}: ${long.status ?? "planned"}` : "Perps execution gated"
+      status: long || latestPosition ? "active" : "queued",
+      amount: longAmount,
+      subtext: longSubtext
     },
     {
       label: "Profit Reserve",
@@ -247,7 +256,7 @@ export async function syncEngineData(options: {
     projectTokenMint: options.projectTokenMint || "TBA",
     ledger: ledgerRows(runs),
     positions: runtimePositions(runs),
-    stages: runtimeStages(latest, snapshot),
+    stages: runtimeStages(latest, snapshot, runtimePositions(runs)),
     holderSnapshot: snapshot
       ? {
           source: snapshot.source,

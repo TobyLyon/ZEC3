@@ -1,8 +1,22 @@
 {
-  "generatedAt": "2026-05-21T16:58:25.395Z",
-  "mode": "live",
+  "generatedAt": "2026-05-21T17:17:15.826Z",
+  "mode": "dry-run",
   "projectTokenMint": "2jfpCbcg66PK8Xzjm1rjqgJ7ESKWCN9DPYGUjn8Ppump",
   "ledger": [
+    {
+      "time": "May 21, 10:15 AM",
+      "action": "Claimed fees",
+      "value": "0.0095 SOL",
+      "hash": "2oCp1x...WCyX4S",
+      "chain": "Solana"
+    },
+    {
+      "time": "May 21, 10:15 AM",
+      "action": "Profit pull",
+      "value": "1.50x trigger",
+      "hash": "below-trigger",
+      "chain": "Flash"
+    },
     {
       "time": "May 21, 09:58 AM",
       "action": "ZEC long plan",
@@ -38,8 +52,8 @@
   "stages": [
     {
       "label": "Claim Fees",
-      "status": "ready",
-      "amount": "Not run",
+      "status": "done",
+      "amount": "0.0095 SOL",
       "subtext": "Pump creator vault"
     },
     {
@@ -62,11 +76,16 @@
     },
     {
       "label": "Airdrop",
-      "status": "queued",
-      "amount": "No snapshot",
-      "subtext": "Fetch holder snapshot"
+      "status": "ready",
+      "amount": "0 holders",
+      "subtext": "Dry-run ready"
     }
   ],
-  "holderSnapshot": null,
+  "holderSnapshot": {
+    "source": "solana-rpc",
+    "createdAt": "2026-05-21T17:13:25.163Z",
+    "totalEligible": 0,
+    "totalBalanceUi": 0
+  },
   "airdropReserveLamports": "0"
 }

@@ -1,5 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { Connection, PublicKey } from "@solana/web3.js";
 import type {
   AirdropDryRunPlan,
   AirdropDryRunRecipient,
@@ -20,6 +22,10 @@ export type SnapshotOptions = {
   minBalanceUi: number;
   excludedWallets: string[];
   topHolders?: number;
+};
+
+export type RpcSnapshotOptions = Omit<SnapshotOptions, "apiKey" | "topHolders"> & {
+  connection: Connection;
 };
 
 function asRecord(value: unknown): JsonRecord | null {
@@ -135,7 +141,9 @@ function mergeAndFilterHolders(
     }
   }
 
-  return [...byOwner.values()].sort((a, b) => b.balanceUi - a.balanceUi);
+  return [...byOwner.values()]
+    .sort((a, b) => b.balanceUi - a.balanceUi)
+    .map((holder, index) => ({ ...holder, sourceRank: index + 1 }));
 }
 
 export async function fetchBirdeyeHolderSnapshot(options: SnapshotOptions): Promise<HolderSnapshot> {
@@ -191,6 +199,79 @@ export async function fetchBirdeyeHolderSnapshot(options: SnapshotOptions): Prom
     version: 1,
     tokenMint: options.tokenMint,
     source: "birdeye",
+    createdAt: new Date().toISOString(),
+    minBalanceUi: options.minBalanceUi,
+    excludedWallets: options.excludedWallets,
+    totalFetched: fetched.length,
+    totalEligible: holders.length,
+    totalBalanceUi,
+    holders
+  };
+}
+
+function parseTokenAccount(account: unknown, index: number): HolderSnapshotHolder | null {
+  const record = asRecord(account);
+  const parsed = asRecord(asRecord(record?.data)?.parsed);
+  const info = asRecord(parsed?.info);
+  const tokenAmount = asRecord(info?.tokenAmount);
+  const owner = typeof info?.owner === "string" ? info.owner : undefined;
+  const balanceRaw = firstString(tokenAmount ?? {}, ["amount"]);
+  const balanceUi = firstNumber(tokenAmount ?? {}, ["uiAmount", "uiAmountString"]) ?? 0;
+
+  if (!owner || !balanceRaw || balanceRaw === "0") return null;
+
+  return {
+    owner,
+    balanceRaw,
+    balanceUi,
+    sourceRank: index + 1
+  };
+}
+
+function applySupplyPercent(holders: HolderSnapshotHolder[], supplyRaw: string): HolderSnapshotHolder[] {
+  if (!/^\d+$/.test(supplyRaw)) return holders;
+  const supply = BigInt(supplyRaw);
+  if (supply <= 0n) return holders;
+
+  return holders.map((holder) => {
+    if (!holder.balanceRaw || !/^\d+$/.test(holder.balanceRaw)) return holder;
+    return {
+      ...holder,
+      supplyPercent: Number((BigInt(holder.balanceRaw) * 1_000_000n) / supply) / 10_000
+    };
+  });
+}
+
+export async function fetchRpcHolderSnapshot(options: RpcSnapshotOptions): Promise<HolderSnapshot> {
+  if (options.tokenMint.length < 32) {
+    throw new Error("Set PROJECT_TOKEN_MINT before fetching a holder snapshot.");
+  }
+
+  const mint = new PublicKey(options.tokenMint);
+  const [accounts, supply] = await Promise.all([
+    options.connection.getParsedProgramAccounts(TOKEN_PROGRAM_ID, {
+      filters: [
+        { dataSize: 165 },
+        { memcmp: { offset: 0, bytes: mint.toBase58() } }
+      ]
+    }),
+    options.connection.getTokenSupply(mint)
+  ]);
+
+  const fetched = accounts
+    .map((account, index) => parseTokenAccount(account.account, index))
+    .filter((holder): holder is HolderSnapshotHolder => holder !== null);
+
+  const holders = applySupplyPercent(
+    mergeAndFilterHolders(fetched, options.minBalanceUi, options.excludedWallets),
+    supply.value.amount
+  );
+  const totalBalanceUi = holders.reduce((sum, holder) => sum + holder.balanceUi, 0);
+
+  return {
+    version: 1,
+    tokenMint: options.tokenMint,
+    source: "solana-rpc",
     createdAt: new Date().toISOString(),
     minBalanceUi: options.minBalanceUi,
     excludedWallets: options.excludedWallets,
